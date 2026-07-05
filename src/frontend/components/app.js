@@ -1,5 +1,8 @@
 const t = window.I18N;
 
+const TASK_COLUMNS = ['status', 'priority', 'name', 'category', 'project', 'contact', 'due_date', 'created_at', 'actions'];
+const DEFAULT_TASK_COLUMNS = ['status', 'priority', 'name', 'category', 'project', 'contact', 'due_date', 'created_at', 'actions'];
+
 const state = {
   view: 'tasks',
   tasks: [],
@@ -8,6 +11,8 @@ const state = {
   contacts: [],
   settings: {},
   filters: { sort_by: 'created_at', sort_dir: 'desc' },
+  visibleTaskColumns: loadVisibleTaskColumns(),
+  showColumnPicker: false,
   editingTask: null
 };
 
@@ -104,7 +109,11 @@ function renderView() {
   actions.innerHTML = '';
   if (state.view === 'tasks') {
     setHeader(t.titles.tasks, t.subtitles.tasks);
-    actions.innerHTML = `<button class="primary" id="add-task">${UI.icon('plus')}${t.titles.addTask}</button>`;
+    actions.innerHTML = `<button class="ghost" id="columns-button">${t.titles.columns}</button><button class="primary" id="add-task">${UI.icon('plus')}${t.titles.addTask}</button>`;
+    document.getElementById('columns-button').onclick = () => {
+      state.showColumnPicker = !state.showColumnPicker;
+      renderTasks();
+    };
     document.getElementById('add-task').onclick = () => openTaskModal();
     renderTasks();
   }
@@ -116,7 +125,9 @@ function renderView() {
 }
 
 function renderTasks() {
+  const visibleColumns = TASK_COLUMNS.filter((column) => state.visibleTaskColumns.includes(column));
   document.getElementById('content').innerHTML = `
+    ${state.showColumnPicker ? columnPicker() : ''}
     <div class="panel filters">
       <input id="search" placeholder="${t.common.search}" value="${state.filters.search || ''}" />
       <select id="category-filter"><option value="">${t.fields.category}: ${t.common.all}</option>${options(state.categories, state.filters.category_id)}</select>
@@ -129,35 +140,71 @@ function renderTasks() {
     </div>
     <div class="panel table-panel">
       <table>
-        <thead><tr>
-          <th>${t.fields.status}</th><th>${t.fields.priority}</th><th>${t.fields.taskName}</th><th>${t.fields.category}</th><th>${t.fields.project}</th>
-          <th>${t.fields.contact}</th><th>${t.fields.dueDate}</th><th>${t.fields.createdDate}</th><th>${t.common.actions}</th>
-        </tr></thead>
-        <tbody>${state.tasks.map(taskRow).join('') || emptyRow(9)}</tbody>
+        <thead><tr>${visibleColumns.map((column) => `<th>${taskColumnLabel(column)}</th>`).join('')}</tr></thead>
+        <tbody>${state.tasks.map((task) => taskRow(task, visibleColumns)).join('') || emptyRow(visibleColumns.length)}</tbody>
       </table>
     </div>
   `;
+  bindColumnPicker();
   bindFilters();
   bindTaskActions();
 }
 
-function taskRow(task) {
-  return `<tr>
-    <td><span class="chip status-${task.status}">${t.status[task.status]}</span></td>
-    <td><span class="chip priority-${task.priority}">${t.priority[task.priority]}</span></td>
-    <td><button class="link-title" data-edit="${task.id}">${escapeHtml(task.name)}</button><small>${escapeHtml(task.tags || '')}</small></td>
-    <td><span class="project-dot" style="--dot:${task.category_color || '#cbd5e1'}"></span>${escapeHtml(task.category_name || '')}</td>
-    <td><span class="project-dot" style="--dot:${task.project_color || '#cbd5e1'}"></span>${escapeHtml(task.project_name || '')}</td>
-    <td>${escapeHtml(task.contact_name || '')}</td>
-    <td>${UI.formatDate(task.due_date)}</td>
-    <td>${UI.formatDate(task.created_at)}</td>
-    <td><div class="row-actions">
+function columnPicker() {
+  return `<div class="panel column-picker">
+    <strong>${t.titles.visibleColumns}</strong>
+    <div>${TASK_COLUMNS.map((column) => `<label class="check-option"><input type="checkbox" data-column="${column}" ${state.visibleTaskColumns.includes(column) ? 'checked' : ''} />${taskColumnLabel(column)}</label>`).join('')}</div>
+  </div>`;
+}
+
+function taskColumnLabel(column) {
+  const labels = {
+    status: t.fields.status,
+    priority: t.fields.priority,
+    name: t.fields.taskName,
+    category: t.fields.category,
+    project: t.fields.project,
+    contact: t.fields.contact,
+    due_date: t.fields.dueDate,
+    created_at: t.fields.createdDate,
+    actions: t.common.actions
+  };
+  return labels[column] || column;
+}
+
+function taskRow(task, columns) {
+  return `<tr>${columns.map((column) => taskCell(task, column)).join('')}</tr>`;
+}
+
+function taskCell(task, column) {
+  const cells = {
+    status: `<td><span class="chip status-${task.status}">${t.status[task.status]}</span></td>`,
+    priority: `<td><span class="chip priority-${task.priority}">${t.priority[task.priority]}</span></td>`,
+    name: `<td><input class="quick-task-name" data-quick-name="${task.id}" value="${escapeAttr(task.name)}" aria-label="${t.fields.taskName}" /><small>${escapeHtml(task.tags || '')}</small></td>`,
+    category: `<td><select class="quick-category" data-quick-category="${task.id}" aria-label="${t.fields.category}"><option value="">${t.common.choose}</option>${options(state.categories, task.category_id)}</select></td>`,
+    project: `<td><span class="project-dot" style="--dot:${task.project_color || '#cbd5e1'}"></span>${escapeHtml(task.project_name || '')}</td>`,
+    contact: `<td>${escapeHtml(task.contact_name || '')}</td>`,
+    due_date: `<td>${UI.formatDate(task.due_date)}</td>`,
+    created_at: `<td>${UI.formatDate(task.created_at)}</td>`,
+    actions: `<td><div class="row-actions">
       <button title="${t.common.edit}" data-edit="${task.id}">${UI.icon('edit')}</button>
       <button title="${t.common.complete}" data-complete="${task.id}">${UI.icon('check')}</button>
       <button title="${t.common.duplicate}" data-duplicate="${task.id}">${UI.icon('copy')}</button>
       <button title="${t.common.delete}" data-delete="${task.id}">${UI.icon('trash')}</button>
-    </div></td>
-  </tr>`;
+    </div></td>`
+  };
+  return cells[column] || '<td></td>';
+}
+
+function bindColumnPicker() {
+  document.querySelectorAll('[data-column]').forEach((checkbox) => {
+    checkbox.addEventListener('change', () => {
+      const selected = [...document.querySelectorAll('[data-column]:checked')].map((item) => item.dataset.column);
+      state.visibleTaskColumns = selected.length ? selected : ['name'];
+      localStorage.setItem('taskflow_task_columns', JSON.stringify(state.visibleTaskColumns));
+      renderTasks();
+    });
+  });
 }
 
 function bindFilters() {
@@ -184,19 +231,55 @@ function bindTaskActions() {
   document.querySelectorAll('[data-delete]').forEach((button) => button.onclick = () => removeTask(button.dataset.delete));
   document.querySelectorAll('[data-complete]').forEach((button) => button.onclick = () => mutateTask(() => Api.completeTask(button.dataset.complete)));
   document.querySelectorAll('[data-duplicate]').forEach((button) => button.onclick = () => mutateTask(() => Api.duplicateTask(button.dataset.duplicate)));
+  document.querySelectorAll('[data-quick-name]').forEach((input) => {
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        input.blur();
+      }
+    });
+    input.addEventListener('change', () => quickUpdateTask(input.dataset.quickName, { name: input.value }));
+  });
+  document.querySelectorAll('[data-quick-category]').forEach((select) => {
+    select.addEventListener('change', () => quickUpdateTask(select.dataset.quickCategory, { category_id: select.value, project_id: '' }));
+  });
+}
+
+async function quickUpdateTask(id, patch) {
+  const task = state.tasks.find((item) => String(item.id) === String(id));
+  if (!task) return;
+  const body = {
+    name: task.name,
+    description: task.description || '',
+    project_id: task.project_id || '',
+    category_id: task.category_id || '',
+    contact_id: task.contact_id || '',
+    priority: task.priority || 'medium',
+    status: task.status || 'open',
+    created_at: task.created_at || '',
+    due_date: task.due_date || '',
+    tags: task.tags || '',
+    notes: task.notes || '',
+    ...patch
+  };
+  if (!String(body.name || '').trim()) return UI.toast(t.messages.requiredTaskName);
+  await Api.updateTask(id, body);
+  await loadAll();
+  renderTasks();
+  UI.toast(t.messages.quickSaved);
 }
 
 function openTaskModal(task = null) {
   const isEdit = Boolean(task);
   const modal = document.getElementById('modal-root');
   modal.innerHTML = `<div class="modal-backdrop"><form class="modal card-form" id="task-form">
-    <div class="modal-head"><h2>${isEdit ? t.titles.editTask : t.titles.addTask}</h2><button type="button" data-close>&times;</button></div>
+    <div class="modal-head"><h2>${isEdit ? t.titles.editTask : t.titles.addTask}</h2><div class="modal-head-actions"><button class="primary" type="submit">${UI.icon('save')}${t.common.save}</button><button type="button" data-close>&times;</button></div></div>
     <div class="form-grid">
       <label>${t.fields.taskName}<input required name="name" value="${escapeAttr(task?.name || '')}" /></label>
+      <label>${t.fields.priority}<select name="priority">${enumOptions(t.priority, task?.priority || 'medium')}</select></label>
       <label>${t.fields.category}<select id="task-category" name="category_id"><option value="">${t.common.choose}</option>${options(state.categories, task?.category_id)}</select></label>
       <label>${t.fields.project}<select id="task-project" name="project_id"><option value="">${t.common.choose}</option>${options(projectsForCategory(task?.category_id), task?.project_id)}</select></label>
       <label>${t.fields.contact}<select name="contact_id"><option value="">${t.common.choose}</option>${options(state.contacts, task?.contact_id)}</select></label>
-      <label>${t.fields.priority}<select name="priority">${enumOptions(t.priority, task?.priority || 'medium')}</select></label>
       <label>${t.fields.status}<select name="status">${enumOptions(t.status, task?.status || 'open')}</select></label>
       <label>${t.fields.createdDate}<input type="date" name="created_at" value="${UI.dateInput(task?.created_at || new Date())}" /></label>
       <label>${t.fields.dueDate}<input type="date" name="due_date" value="${UI.dateInput(task?.due_date)}" /></label>
@@ -204,7 +287,7 @@ function openTaskModal(task = null) {
       <label class="wide">${t.fields.description}<textarea name="description">${escapeHtml(task?.description || '')}</textarea></label>
       <label class="wide">${t.fields.notes}<textarea name="notes">${escapeHtml(task?.notes || '')}</textarea></label>
     </div>
-    <div class="modal-actions"><button type="button" class="ghost" data-close>${t.common.cancel}</button><button class="primary">${UI.icon('save')}${t.common.save}</button></div>
+    <div class="modal-actions"><button type="button" class="ghost" data-close>${t.common.cancel}</button><button class="primary" type="submit">${UI.icon('save')}${t.common.save}</button></div>
   </form></div>`;
   modal.querySelectorAll('[data-close]').forEach((button) => button.onclick = closeModal);
   const taskCategory = document.getElementById('task-category');
@@ -439,6 +522,16 @@ function closeModal() {
 function projectsForCategory(categoryId) {
   if (!categoryId) return state.projects;
   return state.projects.filter((project) => String(project.category_id || '') === String(categoryId));
+}
+
+function loadVisibleTaskColumns() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('taskflow_task_columns') || '[]');
+    const valid = saved.filter((column) => TASK_COLUMNS.includes(column));
+    return valid.length ? valid : DEFAULT_TASK_COLUMNS;
+  } catch (error) {
+    return DEFAULT_TASK_COLUMNS;
+  }
 }
 
 function options(items, selected) {
