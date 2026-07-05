@@ -25,10 +25,11 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const categoryRepository = new CategoryRepository(db);
   const priorityRepository = new PriorityRepository(db);
   const settingsService = new SettingsService(db, dbPath);
+  const catalogService = new CatalogService(projectRepository, contactRepository, categoryRepository, priorityRepository);
   const services = {
-    authService: new AuthService(settingsService),
+    authService: new AuthService(db, catalogService),
     taskService: new TaskService(taskRepository),
-    catalogService: new CatalogService(projectRepository, contactRepository, categoryRepository, priorityRepository),
+    catalogService,
     settingsService
   };
 

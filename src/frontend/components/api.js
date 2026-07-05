@@ -26,7 +26,8 @@ window.Api = {
     return data;
   },
 
-  login: (password) => Api.request('/auth/login', { method: 'POST', body: { password } }),
+  register: (username, password) => Api.request('/auth/register', { method: 'POST', body: { username, password } }),
+  login: (username, password) => Api.request('/auth/login', { method: 'POST', body: { username, password } }),
   logout: () => Api.request('/auth/logout', { method: 'POST' }),
   authStatus: () => Api.request('/auth/status'),
   changePassword: (currentPassword, nextPassword) => Api.request('/auth/change-password', { method: 'POST', body: { currentPassword, nextPassword } }),

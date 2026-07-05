@@ -13,9 +13,9 @@ class TaskRepository extends BaseRepository {
     super(db, 'tasks');
   }
 
-  list(filters = {}) {
-    const where = [];
-    const params = {};
+  list(userId, filters = {}) {
+    const where = ['tasks.user_id = @user_id'];
+    const params = { user_id: Number(userId) };
 
     if (filters.search) {
       where.push('(tasks.name LIKE @search OR tasks.description LIKE @search OR tasks.notes LIKE @search)');
@@ -73,8 +73,8 @@ class TaskRepository extends BaseRepository {
   create(data) {
     const insert = this.db.prepare(`
       INSERT INTO tasks
-      (name, description, project_id, category_id, contact_id, priority, status, created_at, due_date, notes, completed_at)
-      VALUES (@name, @description, @project_id, @category_id, @contact_id, @priority, @status, @created_at, @due_date, @notes, @completed_at)
+      (user_id, name, description, project_id, category_id, contact_id, priority, status, created_at, due_date, notes, completed_at)
+      VALUES (@user_id, @name, @description, @project_id, @category_id, @contact_id, @priority, @status, @created_at, @due_date, @notes, @completed_at)
     `);
     const transaction = this.db.transaction((payload) => {
       const info = insert.run(payload);
@@ -82,10 +82,10 @@ class TaskRepository extends BaseRepository {
       return info.lastInsertRowid;
     });
     const id = transaction(data);
-    return this.findDetailedById(id);
+    return this.findDetailedById(data.user_id, id);
   }
 
-  update(id, data) {
+  update(userId, id, data) {
     const update = this.db.prepare(`
       UPDATE tasks
       SET name = @name,
@@ -100,14 +100,18 @@ class TaskRepository extends BaseRepository {
           notes = @notes,
           completed_at = @completed_at,
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = @id
+      WHERE id = @id AND user_id = @user_id
     `);
     const transaction = this.db.transaction((payload) => {
-      update.run({ ...payload, id });
+      update.run({ ...payload, id, user_id: Number(userId) });
       this.setTags(id, payload.tags || []);
     });
     transaction(data);
-    return this.findDetailedById(id);
+    return this.findDetailedById(userId, id);
+  }
+
+  deleteForUser(userId, id) {
+    return this.db.prepare('DELETE FROM tasks WHERE id = ? AND user_id = ?').run(id, Number(userId));
   }
 
   setTags(taskId, tags) {
@@ -121,17 +125,17 @@ class TaskRepository extends BaseRepository {
     });
   }
 
-  markComplete(id) {
+  markComplete(userId, id) {
     this.db.prepare(`
       UPDATE tasks
       SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(id);
-    return this.findDetailedById(id);
+      WHERE id = ? AND user_id = ?
+    `).run(id, Number(userId));
+    return this.findDetailedById(userId, id);
   }
 
-  duplicate(id) {
-    const original = this.findDetailedById(id);
+  duplicate(userId, id) {
+    const original = this.findDetailedById(userId, id);
     const copy = {
       ...original,
       name: `${original.name} (2)`,
@@ -141,14 +145,14 @@ class TaskRepository extends BaseRepository {
       tags: original.tags ? original.tags.split(',').map((tag) => tag.trim()) : []
     };
     delete copy.id;
-    return this.create(copy);
+    return this.create({ ...copy, user_id: Number(userId) });
   }
 
-  findDetailedById(id) {
-    return this.list({}).find((task) => Number(task.id) === Number(id));
+  findDetailedById(userId, id) {
+    return this.list(userId, {}).find((task) => Number(task.id) === Number(id));
   }
 
-  dashboard() {
+  dashboard(userId) {
     const summary = this.db.prepare(`
       SELECT
         SUM(CASE WHEN status != 'completed' THEN 1 ELSE 0 END) AS open_tasks,
@@ -156,28 +160,32 @@ class TaskRepository extends BaseRepository {
         SUM(CASE WHEN due_date IS NOT NULL AND date(due_date) < date('now') AND status != 'completed' THEN 1 ELSE 0 END) AS overdue_tasks,
         SUM(CASE WHEN due_date IS NOT NULL AND date(due_date) = date('now') THEN 1 ELSE 0 END) AS today_tasks
       FROM tasks
-    `).get();
-    const byPriority = this.db.prepare('SELECT priority AS label, COUNT(*) AS value FROM tasks GROUP BY priority').all();
+      WHERE user_id = ?
+    `).get(Number(userId));
+    const byPriority = this.db.prepare('SELECT priority AS label, COUNT(*) AS value FROM tasks WHERE user_id = ? GROUP BY priority').all(Number(userId));
     const byProject = this.db.prepare(`
       SELECT COALESCE(projects.name, '__NO_PROJECT__') AS label, COUNT(tasks.id) AS value
       FROM tasks
       LEFT JOIN projects ON projects.id = tasks.project_id
+      WHERE tasks.user_id = ?
       GROUP BY projects.name
       ORDER BY value DESC
-    `).all();
+    `).all(Number(userId));
     const byCategory = this.db.prepare(`
       SELECT COALESCE(categories.name, '__NO_CATEGORY__') AS label, COUNT(tasks.id) AS value
       FROM tasks
       LEFT JOIN categories ON categories.id = tasks.category_id
+      WHERE tasks.user_id = ?
       GROUP BY categories.name
       ORDER BY value DESC
-    `).all();
+    `).all(Number(userId));
     const recent = this.db.prepare(`
       SELECT id, name, status, updated_at
       FROM tasks
+      WHERE user_id = ?
       ORDER BY updated_at DESC
       LIMIT 8
-    `).all();
+    `).all(Number(userId));
     return { summary, byPriority, byProject, byCategory, recent };
   }
 }

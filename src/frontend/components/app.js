@@ -21,8 +21,14 @@ const state = {
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  window.addEventListener('taskflow:auth-required', renderLogin);
+  window.addEventListener('taskflow:auth-required', () => renderLogin());
   if (!Api.token) return renderLogin();
+  try {
+    const status = await Api.authStatus();
+    if (!status.authenticated) return renderLogin(status);
+  } catch (error) {
+    return renderLogin();
+  }
   renderShell();
   await loadAll();
   renderView();
@@ -42,30 +48,34 @@ async function loadAll() {
   document.body.classList.toggle('dark', settings.theme === 'dark');
 }
 
-function renderLogin() {
+async function renderLogin(status = null) {
+  if (!status) status = await Api.authStatus().catch(() => ({ hasUsers: true }));
+  const isRegister = !status.hasUsers;
   document.getElementById('app').innerHTML = `
     <main class="login-screen">
       <form id="login-form" class="login-card">
         <div class="brand login-brand"><span class="brand-mark">${UI.icon('check')}</span><strong>${t.appName}</strong></div>
-        <h1>${t.auth.title}</h1>
-        <p>${t.auth.subtitle}</p>
-        <label>${t.auth.password}<input type="password" name="password" autocomplete="current-password" required autofocus /></label>
-        <button class="primary">${t.auth.login}</button>
-        <small>${t.auth.initialPasswordHint}</small>
+        <h1>${isRegister ? t.auth.registerTitle : t.auth.title}</h1>
+        <p>${isRegister ? t.auth.registerSubtitle : t.auth.subtitle}</p>
+        <label>${t.auth.username}<input name="username" autocomplete="username" required autofocus /></label>
+        <label>${t.auth.password}<input type="password" name="password" autocomplete="current-password" /></label>
+        <button class="primary">${isRegister ? t.auth.createAccount : t.auth.login}</button>
       </form>
     </main>
   `;
   document.getElementById('login-form').onsubmit = async (event) => {
     event.preventDefault();
-    const password = new FormData(event.target).get('password');
+    const form = new FormData(event.target);
+    const username = form.get('username');
+    const password = form.get('password');
     try {
-      const result = await Api.login(password);
+      const result = isRegister ? await Api.register(username, password) : await Api.login(username, password);
       Api.setToken(result.token);
       renderShell();
       await loadAll();
       renderView();
     } catch (error) {
-      UI.toast(t.auth.invalidPassword);
+      UI.toast(isRegister ? t.auth.registerFailed : t.auth.invalidPassword);
     }
   };
 }

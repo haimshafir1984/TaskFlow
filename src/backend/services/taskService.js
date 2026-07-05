@@ -5,32 +5,32 @@ class TaskService {
     this.tasks = taskRepository;
   }
 
-  list(filters) {
-    return this.tasks.list(filters);
+  list(userId, filters) {
+    return this.tasks.list(userId, filters);
   }
 
-  create(payload) {
-    return this.tasks.create(this.normalize(payload));
+  create(userId, payload) {
+    return this.tasks.create({ ...this.normalize(payload), user_id: Number(userId) });
   }
 
-  update(id, payload) {
-    return this.tasks.update(id, this.normalize(payload));
+  update(userId, id, payload) {
+    return this.tasks.update(userId, id, this.normalize(payload));
   }
 
-  delete(id) {
-    return this.tasks.delete(id);
+  delete(userId, id) {
+    return this.tasks.deleteForUser(userId, id);
   }
 
-  complete(id) {
-    return this.tasks.markComplete(id);
+  complete(userId, id) {
+    return this.tasks.markComplete(userId, id);
   }
 
-  duplicate(id) {
-    return this.tasks.duplicate(id);
+  duplicate(userId, id) {
+    return this.tasks.duplicate(userId, id);
   }
 
-  dashboard() {
-    return this.tasks.dashboard();
+  dashboard(userId) {
+    return this.tasks.dashboard(userId);
   }
 
   normalize(payload) {

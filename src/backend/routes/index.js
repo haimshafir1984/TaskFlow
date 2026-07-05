@@ -12,6 +12,7 @@ function createRoutes(services) {
   const catalogs = createCatalogController(services.catalogService);
   const settings = createSettingsController(services.settingsService, services.taskService);
 
+  router.post('/auth/register', auth.register);
   router.post('/auth/login', auth.login);
   router.get('/auth/status', auth.status);
   router.post('/auth/logout', auth.logout);

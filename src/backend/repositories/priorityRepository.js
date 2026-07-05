@@ -5,26 +5,31 @@ class PriorityRepository extends BaseRepository {
     super(db, 'priorities');
   }
 
-  list() {
+  list(userId) {
     return this.db.prepare(`
       SELECT p.*, COUNT(t.id) AS task_count
       FROM priorities p
-      LEFT JOIN tasks t ON t.priority = p.key
+      LEFT JOIN tasks t ON t.priority = p.key AND t.user_id = p.user_id
+      WHERE p.user_id = ?
       GROUP BY p.id
       ORDER BY p.sort_order ASC, p.name COLLATE NOCASE
-    `).all();
+    `).all(Number(userId));
+  }
+
+  findByIdForUser(userId, id) {
+    return this.db.prepare('SELECT * FROM priorities WHERE id = ? AND user_id = ?').get(id, Number(userId));
   }
 
   create(data) {
     const info = this.db.prepare(`
-      INSERT INTO priorities (key, name, color, sort_order, is_default)
-      VALUES (@key, @name, @color, @sort_order, 0)
+      INSERT INTO priorities (user_id, key, name, color, sort_order, is_default)
+      VALUES (@user_id, @key, @name, @color, @sort_order, 0)
     `).run(data);
-    return this.findById(info.lastInsertRowid);
+    return this.findByIdForUser(data.user_id, info.lastInsertRowid);
   }
 
-  update(id, data) {
-    const current = this.findById(id);
+  update(userId, id, data) {
+    const current = this.findByIdForUser(userId, id);
     if (!current) return null;
     this.db.prepare(`
       UPDATE priorities
@@ -33,22 +38,22 @@ class PriorityRepository extends BaseRepository {
           color = @color,
           sort_order = @sort_order,
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = @id
-    `).run({ ...data, id });
+      WHERE id = @id AND user_id = @user_id
+    `).run({ ...data, id, user_id: Number(userId) });
     if (current.key !== data.key) {
-      this.db.prepare('UPDATE tasks SET priority = ? WHERE priority = ?').run(data.key, current.key);
+      this.db.prepare('UPDATE tasks SET priority = ? WHERE priority = ? AND user_id = ?').run(data.key, current.key, Number(userId));
     }
-    return this.findById(id);
+    return this.findByIdForUser(userId, id);
   }
 
-  delete(id) {
-    const current = this.findById(id);
+  deleteForUser(userId, id) {
+    const current = this.findByIdForUser(userId, id);
     if (!current) return null;
-    const fallback = this.db.prepare('SELECT key FROM priorities WHERE id != ? ORDER BY sort_order ASC, id ASC LIMIT 1').get(id);
+    const fallback = this.db.prepare('SELECT key FROM priorities WHERE id != ? AND user_id = ? ORDER BY sort_order ASC, id ASC LIMIT 1').get(id, Number(userId));
     if (fallback) {
-      this.db.prepare('UPDATE tasks SET priority = ? WHERE priority = ?').run(fallback.key, current.key);
+      this.db.prepare('UPDATE tasks SET priority = ? WHERE priority = ? AND user_id = ?').run(fallback.key, current.key, Number(userId));
     }
-    return super.delete(id);
+    return this.db.prepare('DELETE FROM priorities WHERE id = ? AND user_id = ?').run(id, Number(userId));
   }
 }
 

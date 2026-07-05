@@ -94,7 +94,18 @@ function normalizeParams(params) {
   return params;
 }
 
+function ensureColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all().map((item) => item.name);
+  if (!columns.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
 function migrateExistingDatabase() {
+  ensureColumn('categories', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('projects', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('contacts', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('priorities', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+  ensureColumn('tasks', 'user_id', 'INTEGER NOT NULL DEFAULT 1');
+
   const categoryColumns = db.prepare('PRAGMA table_info(categories)').all().map((column) => column.name);
   if (!categoryColumns.includes('description')) {
     db.exec("ALTER TABLE categories ADD COLUMN description TEXT DEFAULT ''");
@@ -113,6 +124,13 @@ function migrateExistingDatabase() {
   migrateProjectUniqueness();
   db.exec('CREATE INDEX IF NOT EXISTS idx_projects_category_id ON projects(category_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_tasks_category_id ON tasks(category_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_priorities_user_id ON priorities(user_id)');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_user_name ON categories(user_id, name)');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_priorities_user_key ON priorities(user_id, key)');
 }
 
 function migrateProjectUniqueness() {
@@ -141,34 +159,6 @@ function migrateProjectUniqueness() {
 }
 
 function seedDefaults() {
-  seedPriorities();
-  const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, color, sort_order) VALUES (?, ?, ?)');
-  insertCategory.run('\u05de\u05e9\u05d9\u05de\u05d5\u05ea \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea', '#2f80ed', 1);
-  insertCategory.run('\u05e1\u05d9\u05d3\u05d5\u05e8\u05d9\u05dd', '#12a594', 2);
-  insertCategory.run('\u05de\u05e9\u05e4\u05d7\u05d4', '#ef5350', 3);
-  insertCategory.run('\u05e4\u05d9\u05ea\u05d5\u05d7 \u05e2\u05e1\u05e7\u05d9', '#8b5cf6', 4);
-  insertCategory.run('\u05e7\u05e0\u05d9\u05d5\u05ea', '#f59e0b', 5);
-
-  const businessId = getCategoryId('\u05e4\u05d9\u05ea\u05d5\u05d7 \u05e2\u05e1\u05e7\u05d9');
-  const shoppingId = getCategoryId('\u05e7\u05e0\u05d9\u05d5\u05ea');
-
-  const projectCount = db.prepare('SELECT COUNT(*) AS count FROM projects').get().count;
-  if (projectCount === 0) {
-    const insertProject = db.prepare('INSERT INTO projects (name, category_id, color, description) VALUES (?, ?, ?, ?)');
-    insertProject.run('\u05db\u05dc\u05dc\u05d9', businessId, '#2f80ed', '\u05ea\u05ea \u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4 \u05db\u05dc\u05dc\u05d9\u05ea \u05dc\u05e4\u05d9\u05ea\u05d5\u05d7 \u05e2\u05e1\u05e7\u05d9');
-    insertProject.run('\u05e2\u05d1\u05d5\u05d3\u05d4', businessId, '#12a594', '\u05de\u05e9\u05d9\u05de\u05d5\u05ea \u05e2\u05d1\u05d5\u05d3\u05d4 \u05d5\u05dc\u05e7\u05d5\u05d7\u05d5\u05ea');
-    insertProject.run('\u05d0\u05d9\u05e9\u05d9', businessId, '#f59e0b', '\u05ea\u05ea \u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4 \u05e7\u05d9\u05d9\u05de\u05ea');
-  } else if (businessId) {
-    db.prepare('UPDATE projects SET category_id = ? WHERE category_id IS NULL').run(businessId);
-  }
-
-  const insertShoppingProject = db.prepare('INSERT OR IGNORE INTO projects (name, category_id, color, description) VALUES (?, ?, ?, ?)');
-  insertShoppingProject.run('\u05e7\u05e0\u05d9\u05d5\u05ea \u05e7\u05d8\u05e0\u05d5\u05ea', shoppingId, '#38bdf8', '');
-  insertShoppingProject.run('\u05e7\u05e0\u05d9\u05d5\u05ea \u05d2\u05d3\u05d5\u05dc\u05d5\u05ea', shoppingId, '#f97316', '');
-  insertShoppingProject.run('\u05e1\u05d5\u05e4\u05e8 \u05d5\u05de\u05d5\u05e6\u05e8\u05d9 \u05de\u05d6\u05d5\u05df', shoppingId, '#22c55e', '');
-
-  db.prepare('UPDATE tasks SET category_id = (SELECT category_id FROM projects WHERE projects.id = tasks.project_id) WHERE category_id IS NULL AND project_id IS NOT NULL').run();
-
   const setting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   setting.run('theme', 'light');
   setting.run('language', 'he');

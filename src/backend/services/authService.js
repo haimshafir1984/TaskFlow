@@ -1,33 +1,47 @@
 const crypto = require('crypto');
 
 class AuthService {
-  constructor(settingsService) {
-    this.settings = settingsService;
-    this.tokens = new Set();
-    this.ensurePassword();
+  constructor(db, catalogService = null) {
+    this.db = db;
+    this.catalogService = catalogService;
+    this.tokens = new Map();
   }
 
-  ensurePassword() {
-    const settings = this.settings.all();
-    if (settings.auth_password_hash && settings.auth_password_salt) return;
-    const initialPassword = process.env.TASKFLOW_INITIAL_PASSWORD || '123456';
+  hasUsers() {
+    return (this.db.prepare('SELECT COUNT(*) AS count FROM users').get()?.count || 0) > 0;
+  }
+
+  register(username, password) {
+    const cleanUsername = String(username || '').trim();
+    if (!cleanUsername) {
+      const error = new Error('Username is required');
+      error.status = 422;
+      throw error;
+    }
     const salt = crypto.randomBytes(16).toString('hex');
-    this.settings.set('auth_password_salt', salt);
-    this.settings.set('auth_password_hash', hashPassword(initialPassword, salt));
+    const info = this.db.prepare(`
+      INSERT INTO users (username, password_salt, password_hash)
+      VALUES (?, ?, ?)
+    `).run(cleanUsername, salt, hashPassword(String(password || ''), salt));
+    const user = this.db.prepare('SELECT id, username FROM users WHERE id = ?').get(info.lastInsertRowid);
+    if (this.catalogService?.seedUserDefaults) this.catalogService.seedUserDefaults(user.id);
+    return this.createSession(user);
   }
 
-  login(password) {
-    const settings = this.settings.all();
-    const expected = settings.auth_password_hash;
-    const actual = hashPassword(String(password || ''), settings.auth_password_salt);
-    if (!expected || actual !== expected) {
-      const error = new Error('Invalid password');
+  login(username, password) {
+    const user = this.db.prepare('SELECT * FROM users WHERE username = ?').get(String(username || '').trim());
+    if (!user || hashPassword(String(password || ''), user.password_salt) !== user.password_hash) {
+      const error = new Error('Invalid username or password');
       error.status = 401;
       throw error;
     }
+    return this.createSession(user);
+  }
+
+  createSession(user) {
     const token = crypto.randomBytes(32).toString('hex');
-    this.tokens.add(token);
-    return { token };
+    this.tokens.set(token, { id: Number(user.id), username: user.username });
+    return { token, user: { id: Number(user.id), username: user.username } };
   }
 
   logout(token) {
@@ -36,15 +50,22 @@ class AuthService {
   }
 
   verify(token) {
-    return Boolean(token && this.tokens.has(token));
+    return token ? this.tokens.get(token) || null : null;
   }
 
-  changePassword(currentPassword, nextPassword) {
-    this.login(currentPassword);
+  changePassword(userId, currentPassword, nextPassword) {
+    const user = this.db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId));
+    if (!user || hashPassword(String(currentPassword || ''), user.password_salt) !== user.password_hash) {
+      const error = new Error('Invalid password');
+      error.status = 401;
+      throw error;
+    }
     const salt = crypto.randomBytes(16).toString('hex');
-    this.settings.set('auth_password_salt', salt);
-    this.settings.set('auth_password_hash', hashPassword(nextPassword, salt));
-    this.tokens.clear();
+    this.db.prepare('UPDATE users SET password_salt = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(salt, hashPassword(String(nextPassword || ''), salt), Number(userId));
+    for (const [token, session] of this.tokens.entries()) {
+      if (session.id === Number(userId)) this.tokens.delete(token);
+    }
     return { ok: true };
   }
 }
