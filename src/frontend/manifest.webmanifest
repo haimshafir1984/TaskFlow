@@ -1,0 +1,20 @@
+﻿{
+  "name": "TaskFlow",
+  "short_name": "TaskFlow",
+  "description": "ניהול משימות בעברית למחשב ולנייד",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f8fc",
+  "theme_color": "#2f80ed",
+  "icons": [
+    {
+      "src": "/assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
