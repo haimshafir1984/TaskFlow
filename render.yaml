@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: taskflow
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm ci
+    startCommand: npm run web
+    autoDeploy: true
+    healthCheckPath: /
+    disk:
+      name: taskflow-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TASKFLOW_DATA_DIR
+        value: /var/data
+      - key: TASKFLOW_INITIAL_PASSWORD
+        sync: false

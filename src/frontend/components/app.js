@@ -2,6 +2,7 @@ const t = window.I18N;
 
 const TASK_COLUMNS = ['status', 'priority', 'name', 'category', 'project', 'contact', 'due_date', 'created_at', 'actions'];
 const DEFAULT_TASK_COLUMNS = ['status', 'priority', 'name', 'category', 'project', 'contact', 'due_date', 'created_at', 'actions'];
+const SORT_FIELDS = ['priority', 'created_at', 'due_date', 'project', 'category'];
 
 const state = {
   view: 'tasks',
@@ -126,16 +127,16 @@ function renderView() {
 
 function renderTasks() {
   const visibleColumns = TASK_COLUMNS.filter((column) => state.visibleTaskColumns.includes(column));
+  const columnVisible = (column) => state.visibleTaskColumns.includes(column);
   document.getElementById('content').innerHTML = `
     ${state.showColumnPicker ? columnPicker() : ''}
     <div class="panel filters">
-      <input id="search" placeholder="${t.common.search}" value="${state.filters.search || ''}" />
-      <select id="category-filter"><option value="">${t.fields.category}: ${t.common.all}</option>${options(state.categories, state.filters.category_id)}</select>
-      <select id="project-filter"><option value="">${t.fields.project}: ${t.common.all}</option>${options(projectsForCategory(state.filters.category_id), state.filters.project_id)}</select>
-      <select id="priority-filter"><option value="">${t.fields.priority}: ${t.common.all}</option>${enumOptions(t.priority, state.filters.priority)}</select>
-      <select id="status-filter"><option value="">${t.fields.status}: ${t.common.all}</option>${enumOptions(t.status, state.filters.status)}</select>
-      <input id="from-date" type="date" value="${state.filters.from_date || ''}" />
-      <input id="to-date" type="date" value="${state.filters.to_date || ''}" />
+      ${columnVisible('name') ? `<input id="search" placeholder="${t.common.search}" value="${state.filters.search || ''}" />` : ''}
+      ${columnVisible('category') ? `<select id="category-filter"><option value="">${t.fields.category}: ${t.common.all}</option>${options(state.categories, state.filters.category_id)}</select>` : ''}
+      ${columnVisible('project') ? `<select id="project-filter"><option value="">${t.fields.project}: ${t.common.all}</option>${options(projectsForCategory(state.filters.category_id), state.filters.project_id)}</select>` : ''}
+      ${columnVisible('priority') ? `<select id="priority-filter"><option value="">${t.fields.priority}: ${t.common.all}</option>${enumOptions(t.priority, state.filters.priority)}</select>` : ''}
+      ${columnVisible('status') ? `<select id="status-filter"><option value="">${t.fields.status}: ${t.common.all}</option>${enumOptions(t.status, state.filters.status)}</select>` : ''}
+      ${columnVisible('due_date') ? `<input id="from-date" type="date" value="${state.filters.from_date || ''}" /><input id="to-date" type="date" value="${state.filters.to_date || ''}" />` : ''}
       <select id="sort-by">${sortOptions()}</select>
     </div>
     <div class="panel table-panel">
@@ -177,15 +178,16 @@ function taskRow(task, columns) {
 }
 
 function taskCell(task, column) {
+  const projectOptions = projectsForCategory(task.category_id);
   const cells = {
-    status: `<td><span class="chip status-${task.status}">${t.status[task.status]}</span></td>`,
-    priority: `<td><span class="chip priority-${task.priority}">${t.priority[task.priority]}</span></td>`,
-    name: `<td><input class="quick-task-name" data-quick-name="${task.id}" value="${escapeAttr(task.name)}" aria-label="${t.fields.taskName}" /><small>${escapeHtml(task.tags || '')}</small></td>`,
-    category: `<td><select class="quick-category" data-quick-category="${task.id}" aria-label="${t.fields.category}"><option value="">${t.common.choose}</option>${options(state.categories, task.category_id)}</select></td>`,
-    project: `<td><span class="project-dot" style="--dot:${task.project_color || '#cbd5e1'}"></span>${escapeHtml(task.project_name || '')}</td>`,
-    contact: `<td>${escapeHtml(task.contact_name || '')}</td>`,
-    due_date: `<td>${UI.formatDate(task.due_date)}</td>`,
-    created_at: `<td>${UI.formatDate(task.created_at)}</td>`,
+    status: `<td><select class="quick-select quick-status" data-quick-field="status" data-task-id="${task.id}" aria-label="${t.fields.status}">${enumOptions(t.status, task.status)}</select></td>`,
+    priority: `<td><select class="quick-select quick-priority" data-quick-field="priority" data-task-id="${task.id}" aria-label="${t.fields.priority}">${enumOptions(t.priority, task.priority)}</select></td>`,
+    name: `<td><input class="quick-input quick-task-name" data-quick-field="name" data-task-id="${task.id}" value="${escapeAttr(task.name)}" aria-label="${t.fields.taskName}" /><small>${escapeHtml(task.tags || '')}</small></td>`,
+    category: `<td><select class="quick-select quick-category" data-quick-field="category_id" data-task-id="${task.id}" aria-label="${t.fields.category}"><option value="">${t.common.choose}</option>${options(state.categories, task.category_id)}</select></td>`,
+    project: `<td><select class="quick-select quick-project" data-quick-field="project_id" data-task-id="${task.id}" aria-label="${t.fields.project}"><option value="">${t.common.choose}</option>${options(projectOptions, task.project_id)}</select></td>`,
+    contact: `<td><select class="quick-select quick-contact" data-quick-field="contact_id" data-task-id="${task.id}" aria-label="${t.fields.contact}"><option value="">${t.common.choose}</option>${options(state.contacts, task.contact_id)}</select></td>`,
+    due_date: `<td><input class="quick-input quick-date" type="date" data-quick-field="due_date" data-task-id="${task.id}" value="${UI.dateInput(task.due_date)}" aria-label="${t.fields.dueDate}" /></td>`,
+    created_at: `<td><input class="quick-input quick-date" type="date" data-quick-field="created_at" data-task-id="${task.id}" value="${UI.dateInput(task.created_at)}" aria-label="${t.fields.createdDate}" /></td>`,
     actions: `<td><div class="row-actions">
       <button title="${t.common.edit}" data-edit="${task.id}">${UI.icon('edit')}</button>
       <button title="${t.common.complete}" data-complete="${task.id}">${UI.icon('check')}</button>
@@ -198,25 +200,30 @@ function taskCell(task, column) {
 
 function bindColumnPicker() {
   document.querySelectorAll('[data-column]').forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
+    checkbox.addEventListener('change', async () => {
       const selected = [...document.querySelectorAll('[data-column]:checked')].map((item) => item.dataset.column);
       state.visibleTaskColumns = selected.length ? selected : ['name'];
       localStorage.setItem('taskflow_task_columns', JSON.stringify(state.visibleTaskColumns));
+      if (!state.visibleTaskColumns.includes(state.filters.sort_by)) {
+        state.filters.sort_by = SORT_FIELDS.find((field) => state.visibleTaskColumns.includes(field)) || state.filters.sort_by;
+        await loadAll();
+      }
       renderTasks();
     });
   });
 }
 
 function bindFilters() {
+  const valueOf = (id) => document.getElementById(id)?.value || '';
   const apply = async () => {
     state.filters = {
-      search: document.getElementById('search').value,
-      project_id: document.getElementById('project-filter').value,
-      category_id: document.getElementById('category-filter').value,
-      priority: document.getElementById('priority-filter').value,
-      status: document.getElementById('status-filter').value,
-      from_date: document.getElementById('from-date').value,
-      to_date: document.getElementById('to-date').value,
+      search: valueOf('search'),
+      project_id: valueOf('project-filter'),
+      category_id: valueOf('category-filter'),
+      priority: valueOf('priority-filter'),
+      status: valueOf('status-filter'),
+      from_date: valueOf('from-date'),
+      to_date: valueOf('to-date'),
       sort_by: document.getElementById('sort-by').value,
       sort_dir: 'desc'
     };
@@ -231,17 +238,23 @@ function bindTaskActions() {
   document.querySelectorAll('[data-delete]').forEach((button) => button.onclick = () => removeTask(button.dataset.delete));
   document.querySelectorAll('[data-complete]').forEach((button) => button.onclick = () => mutateTask(() => Api.completeTask(button.dataset.complete)));
   document.querySelectorAll('[data-duplicate]').forEach((button) => button.onclick = () => mutateTask(() => Api.duplicateTask(button.dataset.duplicate)));
-  document.querySelectorAll('[data-quick-name]').forEach((input) => {
-    input.addEventListener('keydown', (event) => {
+  document.querySelectorAll('[data-quick-field]').forEach((control) => {
+    control.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        input.blur();
+        control.blur();
       }
     });
-    input.addEventListener('change', () => quickUpdateTask(input.dataset.quickName, { name: input.value }));
-  });
-  document.querySelectorAll('[data-quick-category]').forEach((select) => {
-    select.addEventListener('change', () => quickUpdateTask(select.dataset.quickCategory, { category_id: select.value, project_id: '' }));
+    control.addEventListener('change', () => {
+      const field = control.dataset.quickField;
+      const patch = { [field]: control.value };
+      if (field === 'category_id') patch.project_id = '';
+      if (field === 'project_id' && control.value) {
+        const project = state.projects.find((item) => String(item.id) === String(control.value));
+        if (project?.category_id) patch.category_id = project.category_id;
+      }
+      quickUpdateTask(control.dataset.taskId, patch);
+    });
   });
 }
 
@@ -544,7 +557,11 @@ function enumOptions(items, selected) {
 
 function sortOptions() {
   const optionsMap = { priority: t.fields.priority, created_at: t.fields.createdDate, due_date: t.fields.dueDate, project: t.fields.project, category: t.fields.category };
-  return Object.entries(optionsMap).map(([value, label]) => `<option value="${value}" ${value === state.filters.sort_by ? 'selected' : ''}>${t.fields.sortBy}: ${label}</option>`).join('');
+  const visibleSortFields = SORT_FIELDS.filter((field) => state.visibleTaskColumns.includes(field));
+  const fields = visibleSortFields.length ? visibleSortFields : SORT_FIELDS;
+  if (!fields.includes(state.filters.sort_by)) state.filters.sort_by = fields[0];
+  return fields
+    .map((field) => `<option value="${field}" ${field === state.filters.sort_by ? 'selected' : ''}>${t.fields.sortBy}: ${optionsMap[field]}</option>`).join('');
 }
 
 function emptyRow(cols) {

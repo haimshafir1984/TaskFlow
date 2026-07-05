@@ -4,3 +4,6 @@ dist/
 # קבצים זמניים של מערכת ההפעלה (אופציונלי אך מומלץ)
 .DS_Store
 Thumbs.db
+data/
+build/
+.env

@@ -198,7 +198,7 @@ h2 {
 
 .filters {
   display: grid;
-  grid-template-columns: 1.5fr repeat(7, minmax(116px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
   padding: 14px;
   margin-bottom: 14px;
@@ -262,6 +262,74 @@ td small {
 
 tbody tr:hover {
   background: rgba(47, 128, 237, 0.04);
+}
+
+.column-picker {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.column-picker > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.check-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.check-option:hover {
+  background: var(--surface-2);
+}
+
+.check-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.quick-input,
+.quick-select {
+  min-width: 132px;
+  min-height: 36px;
+  padding: 0 8px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.quick-task-name {
+  min-width: 190px;
+}
+
+.quick-date {
+  min-width: 142px;
+}
+
+.quick-input:hover,
+.quick-select:hover,
+.quick-input:focus,
+.quick-select:focus {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.quick-input:focus,
+.quick-select:focus {
+  border-color: var(--primary);
 }
 
 .link-title {
