@@ -18,6 +18,13 @@ class AuthService {
       error.status = 422;
       throw error;
     }
+    const existing = this.db.prepare('SELECT id FROM users WHERE username = ?').get(cleanUsername);
+    if (existing) {
+      const error = new Error('Username already exists');
+      error.status = 409;
+      error.code = 'USERNAME_EXISTS';
+      throw error;
+    }
     const salt = crypto.randomBytes(16).toString('hex');
     const info = this.db.prepare(`
       INSERT INTO users (username, password_salt, password_hash)

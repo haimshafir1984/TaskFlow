@@ -16,13 +16,22 @@ window.Api = {
       body: options.body ? JSON.stringify(options.body) : undefined
     });
     if (response.status === 204) return null;
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (response.status === 401) {
-      Api.setToken('');
-      window.dispatchEvent(new CustomEvent('taskflow:auth-required'));
-      throw new Error(data.message || 'Authentication required');
+      const isAuthFormRequest = path === '/auth/login' || path === '/auth/register' || path === '/auth/status';
+      if (!isAuthFormRequest) {
+        Api.setToken('');
+        window.dispatchEvent(new CustomEvent('taskflow:auth-required'));
+      }
+      const error = new Error(data.message || 'Authentication required');
+      error.code = data.code;
+      throw error;
     }
-    if (!response.ok) throw new Error(data.message || 'API error');
+    if (!response.ok) {
+      const error = new Error(data.message || 'API error');
+      error.code = data.code;
+      throw error;
+    }
     return data;
   },
 

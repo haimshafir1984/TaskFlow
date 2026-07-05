@@ -48,10 +48,10 @@ async function loadAll() {
   document.body.classList.toggle('dark', settings.theme === 'dark');
 }
 
-async function renderLogin(status = null) {
+async function renderLogin(status = null, mode = null) {
   document.getElementById('app').className = 'auth-shell';
   if (!status) status = await Api.authStatus().catch(() => ({ hasUsers: true }));
-  const isRegister = !status.hasUsers;
+  const isRegister = mode ? mode === 'register' : !status.hasUsers;
   document.getElementById('app').innerHTML = `
     <main class="login-screen">
       <form id="login-form" class="login-card">
@@ -59,11 +59,16 @@ async function renderLogin(status = null) {
         <h1>${isRegister ? t.auth.registerTitle : t.auth.title}</h1>
         <p>${isRegister ? t.auth.registerSubtitle : t.auth.subtitle}</p>
         <label>${t.auth.username}<input name="username" autocomplete="username" value="${escapeAttr(localStorage.getItem('taskflow_username') || '')}" required autofocus /></label>
-        <label>${t.auth.password}<input type="password" name="password" autocomplete="current-password" /></label>
+        <label>${t.auth.password}<input type="password" name="password" autocomplete="${isRegister ? 'new-password' : 'current-password'}" /></label>
         <button class="primary">${isRegister ? t.auth.createAccount : t.auth.login}</button>
+        <div class="auth-switch">
+          <span>${isRegister ? t.auth.haveAccount : t.auth.needAccount}</span>
+          <button type="button" class="text-button" id="auth-mode-toggle">${isRegister ? t.auth.goToLogin : t.auth.goToRegister}</button>
+        </div>
       </form>
     </main>
   `;
+  document.getElementById('auth-mode-toggle').onclick = () => renderLogin(status, isRegister ? 'login' : 'register');
   document.getElementById('login-form').onsubmit = async (event) => {
     event.preventDefault();
     const form = new FormData(event.target);
@@ -77,7 +82,7 @@ async function renderLogin(status = null) {
       await loadAll();
       renderView();
     } catch (error) {
-      UI.toast(isRegister ? t.auth.registerFailed : t.auth.invalidPassword);
+      UI.toast(error.code === 'USERNAME_EXISTS' ? t.auth.usernameExists : (isRegister ? t.auth.registerFailed : t.auth.invalidPassword));
     }
   };
 }
@@ -654,22 +659,3 @@ function escapeHtml(value) {
 function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, '&#96;');
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

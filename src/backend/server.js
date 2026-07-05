@@ -35,6 +35,13 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
 
   app.get('/health', (req, res) => res.json({ ok: true }));
   app.use('/api', createRoutes(services));
+  app.use('/api', (error, req, res, next) => {
+    const status = error.status || 500;
+    res.status(status).json({
+      message: error.message || 'Server error',
+      code: error.code || 'SERVER_ERROR'
+    });
+  });
   app.get('*', (req, res) => res.sendFile(path.join(frontendDir, 'index.html')));
 
   return new Promise((resolve) => {

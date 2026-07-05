@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #f5f8fc;
   --surface: #ffffff;
   --surface-2: #eef6ff;
@@ -554,7 +554,19 @@ tbody tr:hover {
   margin-bottom: 18px;
 }
 
-.modal-head button {
+.modal-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.modal-head-actions .primary {
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.modal-head [data-close] {
   width: 36px;
   height: 36px;
   border: 0;
@@ -716,6 +728,28 @@ label {
   margin-bottom: 4px;
 }
 
+.auth-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.text-button {
+  border: 0;
+  padding: 0;
+  color: var(--primary);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+}
 .icon-command {
   display: inline-grid;
   place-items: center;
