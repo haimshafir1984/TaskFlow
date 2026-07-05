@@ -1,8 +1,38 @@
 class CatalogService {
-  constructor(projectRepository, contactRepository, categoryRepository) {
+  constructor(projectRepository, contactRepository, categoryRepository, priorityRepository) {
     this.projects = projectRepository;
     this.contacts = contactRepository;
     this.categories = categoryRepository;
+    this.priorities = priorityRepository;
+  }
+
+
+  listPriorities() {
+    return this.priorities.list();
+  }
+
+  createPriority(payload) {
+    const name = String(payload.name || '').trim();
+    return this.priorities.create({
+      key: normalizeKey(payload.key || name),
+      name,
+      color: payload.color || '#2f80ed',
+      sort_order: Number(payload.sort_order || 0)
+    });
+  }
+
+  updatePriority(id, payload) {
+    const name = String(payload.name || '').trim();
+    return this.priorities.update(id, {
+      key: normalizeKey(payload.key || name),
+      name,
+      color: payload.color || '#2f80ed',
+      sort_order: Number(payload.sort_order || 0)
+    });
+  }
+
+  deletePriority(id) {
+    return this.priorities.delete(id);
   }
 
   listCategories() {
@@ -82,6 +112,15 @@ class CatalogService {
   deleteContact(id) {
     return this.contacts.delete(id);
   }
+}
+
+function normalizeKey(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_\-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return normalized || `priority_${Date.now()}`;
 }
 
 module.exports = CatalogService;

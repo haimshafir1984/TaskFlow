@@ -27,6 +27,11 @@ function createRoutes(services) {
   router.post('/tasks/:id/complete', tasks.complete);
   router.post('/tasks/:id/duplicate', tasks.duplicate);
 
+  router.get('/priorities', catalogs.priorities.list);
+  router.post('/priorities', catalogs.priorities.create);
+  router.put('/priorities/:id', catalogs.priorities.update);
+  router.delete('/priorities/:id', catalogs.priorities.delete);
+
   router.get('/categories', catalogs.categories.list);
   router.post('/categories', catalogs.categories.create);
   router.put('/categories/:id', catalogs.categories.update);

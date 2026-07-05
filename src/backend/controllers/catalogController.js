@@ -1,5 +1,11 @@
 function createCatalogController(catalogService) {
   return {
+    priorities: {
+      list: (req, res) => res.json(catalogService.listPriorities()),
+      create: (req, res) => res.status(201).json(catalogService.createPriority(req.body)),
+      update: (req, res) => res.json(catalogService.updatePriority(req.params.id, req.body)),
+      delete: (req, res) => res.status(204).json(catalogService.deletePriority(req.params.id))
+    },
     categories: {
       list: (req, res) => res.json(catalogService.listCategories()),
       create: (req, res) => res.status(201).json(catalogService.createCategory(req.body)),

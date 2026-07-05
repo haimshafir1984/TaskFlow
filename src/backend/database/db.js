@@ -141,6 +141,7 @@ function migrateProjectUniqueness() {
 }
 
 function seedDefaults() {
+  seedPriorities();
   const insertCategory = db.prepare('INSERT OR IGNORE INTO categories (name, color, sort_order) VALUES (?, ?, ?)');
   insertCategory.run('\u05de\u05e9\u05d9\u05de\u05d5\u05ea \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea', '#2f80ed', 1);
   insertCategory.run('\u05e1\u05d9\u05d3\u05d5\u05e8\u05d9\u05dd', '#12a594', 2);
@@ -173,7 +174,19 @@ function seedDefaults() {
   setting.run('language', 'he');
 }
 
+function seedPriorities() {
+  const insertPriority = db.prepare(`
+    INSERT OR IGNORE INTO priorities (key, name, color, sort_order, is_default)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  insertPriority.run('low', '\u05e0\u05de\u05d5\u05db\u05d4', '#22c55e', 1, 1);
+  insertPriority.run('medium', '\u05d1\u05d9\u05e0\u05d5\u05e0\u05d9\u05ea', '#2f80ed', 2, 1);
+  insertPriority.run('high', '\u05d2\u05d1\u05d5\u05d4\u05d4', '#f59e0b', 3, 1);
+  insertPriority.run('urgent', '\u05d3\u05d7\u05d5\u05e4\u05d4', '#ef5350', 4, 1);
+}
+
 function getCategoryId(name) {
+
   return db.prepare('SELECT id FROM categories WHERE name = ?').get(name)?.id || null;
 }
 

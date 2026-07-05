@@ -9,6 +9,7 @@ const state = {
   tasks: [],
   projects: [],
   categories: [],
+  priorities: [],
   contacts: [],
   settings: {},
   filters: { sort_by: 'created_at', sort_dir: 'desc' },
@@ -29,14 +30,15 @@ async function init() {
 
 async function loadAll() {
   const query = new URLSearchParams(Object.entries(state.filters).filter(([, value]) => value)).toString();
-  const [tasks, projects, categories, contacts, settings] = await Promise.all([
+  const [tasks, projects, categories, priorities, contacts, settings] = await Promise.all([
     Api.tasks(query ? `?${query}` : ''),
     Api.projects(),
     Api.categories(),
+    Api.priorities(),
     Api.contacts(),
     Api.settings()
   ]);
-  Object.assign(state, { tasks, projects, categories, contacts, settings });
+  Object.assign(state, { tasks, projects, categories, priorities, contacts, settings });
   document.body.classList.toggle('dark', settings.theme === 'dark');
 }
 
@@ -134,7 +136,7 @@ function renderTasks() {
       ${columnVisible('name') ? `<input id="search" placeholder="${t.common.search}" value="${state.filters.search || ''}" />` : ''}
       ${columnVisible('category') ? `<select id="category-filter"><option value="">${t.fields.category}: ${t.common.all}</option>${options(state.categories, state.filters.category_id)}</select>` : ''}
       ${columnVisible('project') ? `<select id="project-filter"><option value="">${t.fields.project}: ${t.common.all}</option>${options(projectsForCategory(state.filters.category_id), state.filters.project_id)}</select>` : ''}
-      ${columnVisible('priority') ? `<select id="priority-filter"><option value="">${t.fields.priority}: ${t.common.all}</option>${enumOptions(t.priority, state.filters.priority)}</select>` : ''}
+      ${columnVisible('priority') ? `<select id="priority-filter"><option value="">${t.fields.priority}: ${t.common.all}</option>${priorityOptions(state.filters.priority)}</select>` : ''}
       ${columnVisible('status') ? `<select id="status-filter"><option value="">${t.fields.status}: ${t.common.all}</option>${enumOptions(t.status, state.filters.status)}</select>` : ''}
       ${columnVisible('due_date') ? `<input id="from-date" type="date" value="${state.filters.from_date || ''}" /><input id="to-date" type="date" value="${state.filters.to_date || ''}" />` : ''}
       <select id="sort-by">${sortOptions()}</select>
@@ -181,7 +183,7 @@ function taskCell(task, column) {
   const projectOptions = projectsForCategory(task.category_id);
   const cells = {
     status: `<td><select class="quick-select quick-status" data-quick-field="status" data-task-id="${task.id}" aria-label="${t.fields.status}">${enumOptions(t.status, task.status)}</select></td>`,
-    priority: `<td><select class="quick-select quick-priority" data-quick-field="priority" data-task-id="${task.id}" aria-label="${t.fields.priority}">${enumOptions(t.priority, task.priority)}</select></td>`,
+    priority: `<td><select class="quick-select quick-priority" data-quick-field="priority" data-task-id="${task.id}" aria-label="${t.fields.priority}">${priorityOptions(task.priority)}</select></td>`,
     name: `<td><input class="quick-input quick-task-name" data-quick-field="name" data-task-id="${task.id}" value="${escapeAttr(task.name)}" aria-label="${t.fields.taskName}" /><small>${escapeHtml(task.tags || '')}</small></td>`,
     category: `<td><select class="quick-select quick-category" data-quick-field="category_id" data-task-id="${task.id}" aria-label="${t.fields.category}"><option value="">${t.common.choose}</option>${options(state.categories, task.category_id)}</select></td>`,
     project: `<td><select class="quick-select quick-project" data-quick-field="project_id" data-task-id="${task.id}" aria-label="${t.fields.project}"><option value="">${t.common.choose}</option>${options(projectOptions, task.project_id)}</select></td>`,
@@ -267,7 +269,7 @@ async function quickUpdateTask(id, patch) {
     project_id: task.project_id || '',
     category_id: task.category_id || '',
     contact_id: task.contact_id || '',
-    priority: task.priority || 'medium',
+    priority: task.priority || defaultPriorityKey(),
     status: task.status || 'open',
     created_at: task.created_at || '',
     due_date: task.due_date || '',
@@ -289,7 +291,7 @@ function openTaskModal(task = null) {
     <div class="modal-head"><h2>${isEdit ? t.titles.editTask : t.titles.addTask}</h2><div class="modal-head-actions"><button class="primary" type="submit">${UI.icon('save')}${t.common.save}</button><button type="button" data-close>&times;</button></div></div>
     <div class="form-grid">
       <label>${t.fields.taskName}<input required name="name" value="${escapeAttr(task?.name || '')}" /></label>
-      <label>${t.fields.priority}<select name="priority">${enumOptions(t.priority, task?.priority || 'medium')}</select></label>
+      <label>${t.fields.priority}<select name="priority">${priorityOptions(task?.priority || defaultPriorityKey())}</select></label>
       <label>${t.fields.category}<select id="task-category" name="category_id"><option value="">${t.common.choose}</option>${options(state.categories, task?.category_id)}</select></label>
       <label>${t.fields.project}<select id="task-project" name="project_id"><option value="">${t.common.choose}</option>${options(projectsForCategory(task?.category_id), task?.project_id)}</select></label>
       <label>${t.fields.contact}<select name="contact_id"><option value="">${t.common.choose}</option>${options(state.contacts, task?.contact_id)}</select></label>
@@ -467,6 +469,10 @@ function renderSettings() {
       <button class="settings-card" id="restore">${t.settings.restore}</button>
       <button class="settings-card" id="export">${t.settings.exportCsv}</button>
       <button class="settings-card" id="import">${t.settings.importCsv}</button>
+    </div>
+    <div class="panel settings-section">
+      <div class="section-head"><h2>${t.titles.priorities}</h2><button class="primary" id="add-priority">${UI.icon('plus')}${t.titles.addPriority}</button></div>
+      <div class="cards-list compact-list">${state.priorities.map(priorityCard).join('') || t.common.empty}</div>
     </div>`;
   document.querySelectorAll('[data-theme]').forEach((button) => button.onclick = async () => {
     await Api.setSetting('theme', button.dataset.theme);
@@ -477,6 +483,45 @@ function renderSettings() {
   document.getElementById('restore').onclick = restoreDb;
   document.getElementById('export').onclick = exportCsv;
   document.getElementById('import').onclick = importCsv;
+  document.getElementById('add-priority').onclick = () => openPriorityModal();
+  document.querySelectorAll('[data-edit-priority]').forEach((button) => button.onclick = () => openPriorityModal(state.priorities.find((item) => item.id == button.dataset.editPriority)));
+  document.querySelectorAll('[data-delete-priority]').forEach((button) => button.onclick = () => removePriority(button.dataset.deletePriority));
+}
+
+function priorityCard(priority) {
+  return `<article class="item-card compact-card"><span class="color-swatch" style="--dot:${priority.color}"></span><h3>${escapeHtml(priority.name)}</h3><small>${escapeHtml(priority.key)} ? ${priority.task_count || 0} ${t.common.tasksCount}</small><div class="row-actions"><button data-edit-priority="${priority.id}">${UI.icon('edit')}</button><button data-delete-priority="${priority.id}">${UI.icon('trash')}</button></div></article>`;
+}
+
+function openPriorityModal(priority = null) {
+  const isEdit = Boolean(priority);
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop"><form class="modal card-form" id="priority-form">
+    <div class="modal-head"><h2>${isEdit ? t.titles.editPriority : t.titles.addPriority}</h2><button type="button" data-close>&times;</button></div>
+    <div class="form-grid">
+      <label>${t.fields.name}<input required name="name" value="${escapeAttr(priority?.name || '')}" /></label>
+      <label>${t.fields.key}<input name="key" value="${escapeAttr(priority?.key || '')}" /></label>
+      <label>${t.fields.color}<input type="color" name="color" value="${priority?.color || '#2f80ed'}" /></label>
+      <label>${t.fields.sortOrder}<input type="number" name="sort_order" value="${escapeAttr(priority?.sort_order || 0)}" /></label>
+    </div>
+    <div class="modal-actions"><button type="button" class="ghost" data-close>${t.common.cancel}</button><button class="primary">${UI.icon('save')}${t.common.save}</button></div>
+  </form></div>`;
+  document.querySelectorAll('[data-close]').forEach((button) => button.onclick = closeModal);
+  document.getElementById('priority-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const body = Object.fromEntries(new FormData(event.target).entries());
+    if (!body.name.trim()) return UI.toast(t.messages.requiredName);
+    isEdit ? await Api.updatePriority(priority.id, body) : await Api.createPriority(body);
+    closeModal();
+    await loadAll();
+    renderView();
+    UI.toast(t.messages.saved);
+  };
+}
+
+async function removePriority(id) {
+  await Api.deletePriority(id);
+  await loadAll();
+  renderView();
+  UI.toast(t.messages.deleted);
 }
 
 async function backupDb() {
@@ -524,7 +569,7 @@ function chartPanel(title, rows) {
 function labelForChart(label) {
   if (label === '__NO_PROJECT__') return t.common.noProject;
   if (label === '__NO_CATEGORY__') return t.common.noCategory;
-  return t.priority[label] || label;
+  return priorityLabel(label) || label;
 }
 
 function closeModal() {
@@ -545,6 +590,19 @@ function loadVisibleTaskColumns() {
   } catch (error) {
     return DEFAULT_TASK_COLUMNS;
   }
+}
+
+
+function priorityOptions(selected) {
+  return state.priorities.map((item) => `<option value="${escapeAttr(item.key)}" ${item.key === selected ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('');
+}
+
+function priorityLabel(key) {
+  return state.priorities.find((item) => item.key === key)?.name || t.priority[key] || key;
+}
+
+function defaultPriorityKey() {
+  return state.priorities[0]?.key || 'medium';
 }
 
 function options(items, selected) {

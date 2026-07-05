@@ -6,6 +6,7 @@ const TaskRepository = require('./repositories/taskRepository');
 const ProjectRepository = require('./repositories/projectRepository');
 const ContactRepository = require('./repositories/contactRepository');
 const CategoryRepository = require('./repositories/categoryRepository');
+const PriorityRepository = require('./repositories/priorityRepository');
 const TaskService = require('./services/taskService');
 const CatalogService = require('./services/catalogService');
 const SettingsService = require('./services/settingsService');
@@ -22,11 +23,12 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const projectRepository = new ProjectRepository(db);
   const contactRepository = new ContactRepository(db);
   const categoryRepository = new CategoryRepository(db);
+  const priorityRepository = new PriorityRepository(db);
   const settingsService = new SettingsService(db, dbPath);
   const services = {
     authService: new AuthService(settingsService),
     taskService: new TaskService(taskRepository),
-    catalogService: new CatalogService(projectRepository, contactRepository, categoryRepository),
+    catalogService: new CatalogService(projectRepository, contactRepository, categoryRepository, priorityRepository),
     settingsService
   };
 

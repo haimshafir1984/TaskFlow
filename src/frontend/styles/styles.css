@@ -724,3 +724,26 @@ label {
   color: var(--primary);
   background: var(--surface-2);
 }
+
+
+.settings-section {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  margin-top: 14px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.compact-list {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+.compact-card {
+  min-height: 132px;
+}
