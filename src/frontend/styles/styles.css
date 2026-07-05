@@ -57,6 +57,10 @@ svg {
   stroke-linejoin: round;
 }
 
+.auth-shell {
+  min-height: 100vh;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -682,11 +686,14 @@ label {
 
 .login-screen {
   min-height: 100vh;
+  width: 100vw;
   display: grid;
   place-items: center;
   padding: 24px;
   background: var(--bg);
+  grid-column: 1 / -1;
 }
+
 
 .login-card {
   width: min(420px, 100%);

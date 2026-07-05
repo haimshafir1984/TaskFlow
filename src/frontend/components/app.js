@@ -49,6 +49,7 @@ async function loadAll() {
 }
 
 async function renderLogin(status = null) {
+  document.getElementById('app').className = 'auth-shell';
   if (!status) status = await Api.authStatus().catch(() => ({ hasUsers: true }));
   const isRegister = !status.hasUsers;
   document.getElementById('app').innerHTML = `
@@ -57,7 +58,7 @@ async function renderLogin(status = null) {
         <div class="brand login-brand"><span class="brand-mark">${UI.icon('check')}</span><strong>${t.appName}</strong></div>
         <h1>${isRegister ? t.auth.registerTitle : t.auth.title}</h1>
         <p>${isRegister ? t.auth.registerSubtitle : t.auth.subtitle}</p>
-        <label>${t.auth.username}<input name="username" autocomplete="username" required autofocus /></label>
+        <label>${t.auth.username}<input name="username" autocomplete="username" value="${escapeAttr(localStorage.getItem('taskflow_username') || '')}" required autofocus /></label>
         <label>${t.auth.password}<input type="password" name="password" autocomplete="current-password" /></label>
         <button class="primary">${isRegister ? t.auth.createAccount : t.auth.login}</button>
       </form>
@@ -71,6 +72,7 @@ async function renderLogin(status = null) {
     try {
       const result = isRegister ? await Api.register(username, password) : await Api.login(username, password);
       Api.setToken(result.token);
+      if (result.user?.username) localStorage.setItem('taskflow_username', result.user.username);
       renderShell();
       await loadAll();
       renderView();
@@ -80,6 +82,7 @@ async function renderLogin(status = null) {
   };
 }
 function renderShell() {
+  document.getElementById('app').className = 'app-shell';
   document.getElementById('app').innerHTML = `
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">${UI.icon('check')}</span><strong>${t.appName}</strong></div>
