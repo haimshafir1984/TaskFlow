@@ -14,8 +14,9 @@ const AuthService = require('./services/authService');
 async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const { db, dbPath } = await initDatabase(dataDir);
   const app = express();
+  const frontendDir = path.join(__dirname, '..', 'frontend');
   app.use(express.json({ limit: '2mb' }));
-  app.use(express.static(path.join(__dirname, '..', 'frontend')));
+  app.use(express.static(frontendDir));
 
   const taskRepository = new TaskRepository(db);
   const projectRepository = new ProjectRepository(db);
@@ -29,7 +30,9 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
     settingsService
   };
 
+  app.get('/health', (req, res) => res.json({ ok: true }));
   app.use('/api', createRoutes(services));
+  app.get('*', (req, res) => res.sendFile(path.join(frontendDir, 'index.html')));
 
   return new Promise((resolve) => {
     const server = app.listen(port, host, () => {

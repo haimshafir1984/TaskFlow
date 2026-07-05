@@ -7,7 +7,7 @@ services:
     buildCommand: npm ci
     startCommand: npm run web
     autoDeploy: true
-    healthCheckPath: /
+    healthCheckPath: /health
     disk:
       name: taskflow-data
       mountPath: /var/data
