@@ -19,7 +19,20 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const app = express();
   const frontendDir = path.join(__dirname, '..', 'frontend');
   app.use(express.json({ limit: '2mb' }));
-  app.use(express.static(frontendDir));
+  app.use((req, res, next) => {
+    if (req.path === '/' || req.path.endsWith('.html') || req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.webmanifest') || req.path.endsWith('service-worker.js')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+    }
+    next();
+  });
+  app.use(express.static(frontendDir, {
+    etag: false,
+    lastModified: false,
+    maxAge: 0
+  }));
 
   const taskRepository = new TaskRepository(db);
   const projectRepository = new ProjectRepository(db);
@@ -46,7 +59,13 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
       code: error.code || 'SERVER_ERROR'
     });
   });
-  app.get('*', (req, res) => res.sendFile(path.join(frontendDir, 'index.html')));
+  app.get('*', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    res.sendFile(path.join(frontendDir, 'index.html'));
+  });
 
   return new Promise((resolve) => {
     const server = app.listen(port, host, () => {
