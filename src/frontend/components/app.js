@@ -3,6 +3,8 @@ const t = window.I18N;
 const TASK_COLUMNS = ['status', 'priority', 'name', 'category', 'project', 'contact', 'due_date', 'created_at', 'actions'];
 const DEFAULT_TASK_COLUMNS = ['status', 'priority', 'name', 'category', 'project', 'contact', 'due_date', 'created_at', 'actions'];
 const SORT_FIELDS = ['priority', 'created_at', 'due_date', 'project', 'category'];
+const DASHBOARD_CARD_WIDGETS = ['open_tasks', 'completed_tasks', 'overdue_tasks', 'today_tasks'];
+const DASHBOARD_PANEL_WIDGETS = ['byPriority', 'byCategory', 'byProject', 'recent'];
 
 const state = {
   view: 'tasks',
@@ -14,6 +16,7 @@ const state = {
   settings: {},
   filters: { sort_by: 'created_at', sort_dir: 'desc' },
   visibleTaskColumns: loadVisibleTaskColumns(),
+  dashboardWidgets: loadDashboardWidgets(),
   showColumnPicker: false,
   editingTask: null
 };
@@ -359,23 +362,38 @@ function renderDashboard() {
   setHeader(t.titles.dashboard, t.subtitles.dashboard);
   Api.dashboard().then((data) => {
     const summary = data.summary || {};
+    const selected = state.dashboardWidgets;
+    const cards = [
+      selected.open_tasks ? statCard(t.dashboard.openTasks, summary.open_tasks || 0, 'blue') : '',
+      selected.completed_tasks ? statCard(t.dashboard.completedTasks, summary.completed_tasks || 0, 'green') : '',
+      selected.overdue_tasks ? statCard(t.dashboard.overdueTasks, summary.overdue_tasks || 0, 'red') : '',
+      selected.today_tasks ? statCard(t.dashboard.todayTasks, summary.today_tasks || 0, 'amber') : ''
+    ].filter(Boolean).join('');
+    const panels = [
+      selected.byPriority ? chartPanel(t.titles.tasksByPriority, data.byPriority || []) : '',
+      selected.byCategory ? chartPanel(t.titles.tasksByCategory, data.byCategory || []) : '',
+      selected.byProject ? chartPanel(t.titles.tasksByProject, data.byProject || []) : '',
+      selected.recent ? recentActivityPanel(data.recent || []) : ''
+    ].filter(Boolean).join('');
     document.getElementById('content').innerHTML = `
-      <div class="stats-grid">
-        ${statCard(t.dashboard.openTasks, summary.open_tasks || 0, 'blue')}
-        ${statCard(t.dashboard.completedTasks, summary.completed_tasks || 0, 'green')}
-        ${statCard(t.dashboard.overdueTasks, summary.overdue_tasks || 0, 'red')}
-        ${statCard(t.dashboard.todayTasks, summary.today_tasks || 0, 'amber')}
-      </div>
-      <div class="dashboard-grid">
-        ${chartPanel(t.titles.tasksByPriority, data.byPriority)}
-        ${chartPanel(t.titles.tasksByProject, data.byProject)}
-        ${chartPanel(t.titles.tasksByCategory, data.byCategory)}
-        <div class="panel"><h2>${t.titles.recentActivity}</h2><div class="activity">${data.recent.map((item) => `<div><strong>${escapeHtml(item.name)}</strong><span>${t.status[item.status]} &middot; ${UI.formatDate(item.updated_at)}</span></div>`).join('') || t.common.empty}</div></div>
-      </div>`;
+      <section class="dashboard-preferences panel">
+        <div><h2>${t.dashboard.customizeTitle}</h2><p>${t.dashboard.customizeSubtitle}</p></div>
+        <div class="dashboard-options">
+          ${DASHBOARD_CARD_WIDGETS.map((key) => dashboardOption(key, t.dashboard[key], selected[key])).join('')}
+          ${DASHBOARD_PANEL_WIDGETS.map((key) => dashboardOption(key, t.dashboard[key], selected[key])).join('')}
+        </div>
+      </section>
+      ${cards ? `<div class="stats-grid">${cards}</div>` : ''}
+      ${panels ? `<div class="dashboard-grid">${panels}</div>` : `<div class="panel empty-panel">${t.dashboard.noWidgets}</div>`}`;
+    document.querySelectorAll('[data-dashboard-widget]').forEach((input) => {
+      input.onchange = () => {
+        state.dashboardWidgets[input.dataset.dashboardWidget] = input.checked;
+        saveDashboardWidgets();
+        renderDashboard();
+      };
+    });
   });
 }
-
-
 function renderCategories() {
   setHeader(t.titles.categories, t.subtitles.categories);
   document.getElementById('toolbar-actions').innerHTML = `<button class="primary" id="add-category">${UI.icon('plus')}${t.titles.addCategory}</button>`;
@@ -584,6 +602,27 @@ function chartPanel(title, rows) {
   return `<div class="panel"><h2>${title}</h2><div class="bars">${rows.map((row) => `<div class="bar-row"><span>${escapeHtml(labelForChart(row.label))}</span><div><i style="width:${(row.value / max) * 100}%"></i></div><b>${row.value}</b></div>`).join('') || t.common.empty}</div></div>`;
 }
 
+function recentActivityPanel(rows) {
+  return `<div class="panel"><h2>${t.titles.recentActivity}</h2><div class="activity">${rows.map((item) => `<div><strong>${escapeHtml(item.name)}</strong><span>${t.status[item.status]} &middot; ${UI.formatDate(item.updated_at)}</span></div>`).join('') || t.common.empty}</div></div>`;
+}
+
+function dashboardOption(key, label, checked) {
+  return `<label class="dashboard-option"><input type="checkbox" data-dashboard-widget="${key}" ${checked ? 'checked' : ''} /> <span>${escapeHtml(label)}</span></label>`;
+}
+
+function loadDashboardWidgets() {
+  const defaults = Object.fromEntries([...DASHBOARD_CARD_WIDGETS, ...DASHBOARD_PANEL_WIDGETS].map((key) => [key, true]));
+  try {
+    const saved = JSON.parse(localStorage.getItem('taskflow_dashboard_widgets') || '{}');
+    return { ...defaults, ...Object.fromEntries(Object.entries(saved).filter(([key]) => key in defaults)) };
+  } catch (error) {
+    return defaults;
+  }
+}
+
+function saveDashboardWidgets() {
+  localStorage.setItem('taskflow_dashboard_widgets', JSON.stringify(state.dashboardWidgets));
+}
 function labelForChart(label) {
   if (label === '__NO_PROJECT__') return t.common.noProject;
   if (label === '__NO_CATEGORY__') return t.common.noCategory;
