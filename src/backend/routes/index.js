@@ -3,6 +3,7 @@ const createTaskController = require('../controllers/taskController');
 const createCatalogController = require('../controllers/catalogController');
 const createSettingsController = require('../controllers/settingsController');
 const createAuthController = require('../controllers/authController');
+const createCustomerController = require('../controllers/customerController');
 const { requireAuth } = require('../middleware/auth');
 
 function createRoutes(services) {
@@ -11,6 +12,7 @@ function createRoutes(services) {
   const tasks = createTaskController(services.taskService);
   const catalogs = createCatalogController(services.catalogService);
   const settings = createSettingsController(services.settingsService, services.taskService);
+  const customers = createCustomerController(services.customerService);
 
   router.post('/auth/register', auth.register);
   router.post('/auth/login', auth.login);
@@ -42,6 +44,11 @@ function createRoutes(services) {
   router.post('/projects', catalogs.projects.create);
   router.put('/projects/:id', catalogs.projects.update);
   router.delete('/projects/:id', catalogs.projects.delete);
+
+  router.get('/customers', customers.list);
+  router.post('/customers', customers.create);
+  router.put('/customers/:id', customers.update);
+  router.delete('/customers/:id', customers.delete);
 
   router.get('/contacts', catalogs.contacts.list);
   router.post('/contacts', catalogs.contacts.create);

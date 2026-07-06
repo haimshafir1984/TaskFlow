@@ -45,6 +45,21 @@ CREATE TABLE IF NOT EXISTS contacts (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL DEFAULT 1,
+  name TEXT NOT NULL,
+  deal_description TEXT DEFAULT '',
+  stage TEXT NOT NULL DEFAULT 'quote',
+  price REAL NOT NULL DEFAULT 0,
+  contact_person TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS priorities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL DEFAULT 1,
@@ -100,5 +115,5 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_task_tags_task_id ON task_tags(task_id);
-
-
+CREATE INDEX IF NOT EXISTS idx_customers_user_id ON customers(user_id);
+CREATE INDEX IF NOT EXISTS idx_customers_stage ON customers(stage);

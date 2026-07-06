@@ -13,6 +13,7 @@ const state = {
   categories: [],
   priorities: [],
   contacts: [],
+  customers: [],
   settings: {},
   filters: { sort_by: 'created_at', sort_dir: 'desc' },
   visibleTaskColumns: loadVisibleTaskColumns(),
@@ -39,15 +40,16 @@ async function init() {
 
 async function loadAll() {
   const query = new URLSearchParams(Object.entries(state.filters).filter(([, value]) => value)).toString();
-  const [tasks, projects, categories, priorities, contacts, settings] = await Promise.all([
+  const [tasks, projects, categories, priorities, contacts, customers, settings] = await Promise.all([
     Api.tasks(query ? `?${query}` : ''),
     Api.projects(),
     Api.categories(),
     Api.priorities(),
     Api.contacts(),
+    Api.customers(),
     Api.settings()
   ]);
-  Object.assign(state, { tasks, projects, categories, priorities, contacts, settings });
+  Object.assign(state, { tasks, projects, categories, priorities, contacts, customers, settings });
   document.body.classList.toggle('dark', settings.theme === 'dark');
 }
 
@@ -94,7 +96,7 @@ function renderShell() {
   document.getElementById('app').innerHTML = `
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">${UI.icon('check')}</span><strong>${t.appName}</strong></div>
-      <nav>${navItem('dashboard')}${navItem('tasks')}${navItem('categories')}${navItem('projects')}${navItem('contacts')}${navItem('settings')}</nav>
+      <nav>${navItem('dashboard')}${navItem('tasks')}${navItem('customers')}${navItem('categories')}${navItem('projects')}${navItem('contacts')}${navItem('settings')}</nav>
     </aside>
     <main class="main">
       <header class="toolbar">
@@ -144,6 +146,7 @@ function renderView() {
   if (state.view === 'dashboard') renderDashboard();
   if (state.view === 'categories') renderCategories();
   if (state.view === 'projects') renderProjects();
+  if (state.view === 'customers') renderCustomers();
   if (state.view === 'contacts') renderContacts();
   if (state.view === 'settings') renderSettings();
 }
@@ -494,6 +497,66 @@ async function removeEntity(type, id) {
   renderView();
 }
 
+function renderCustomers() {
+  setHeader(t.titles.customers, t.subtitles.customers);
+  document.getElementById('toolbar-actions').innerHTML = `<button class="primary" id="add-customer">${UI.icon('plus')}${t.titles.addCustomer}</button>`;
+  document.getElementById('content').innerHTML = `<div class="cards-list">${state.customers.map(customerCard).join('') || `<div class="panel">${t.common.empty}</div>`}</div>`;
+  document.getElementById('add-customer').onclick = () => openCustomerModal();
+  document.querySelectorAll('[data-edit-customer]').forEach((button) => button.onclick = () => openCustomerModal(state.customers.find((item) => item.id == button.dataset.editCustomer)));
+  document.querySelectorAll('[data-delete-customer]').forEach((button) => button.onclick = () => removeCustomer(button.dataset.deleteCustomer));
+}
+
+function customerCard(customer) {
+  return `<article class="item-card customer-card">
+    <div class="customer-card-head"><h3>${escapeHtml(customer.name)}</h3><span class="stage-badge">${t.customerStage[customer.stage] || customer.stage}</span></div>
+    <p>${escapeHtml(customer.deal_description || '')}</p>
+    <strong>${formatMoney(customer.price)}</strong>
+    <small>${escapeHtml(customer.contact_person || '')}${customer.phone ? ` · ${escapeHtml(customer.phone)}` : ''}${customer.email ? `<br>${escapeHtml(customer.email)}` : ''}</small>
+    <small>${escapeHtml(customer.notes || '')}</small>
+    <div class="row-actions"><button data-edit-customer="${customer.id}">${UI.icon('edit')}</button><button data-delete-customer="${customer.id}">${UI.icon('trash')}</button></div>
+  </article>`;
+}
+
+function openCustomerModal(customer = null) {
+  const isEdit = Boolean(customer);
+  document.getElementById('modal-root').innerHTML = `<div class="modal-backdrop"><form class="modal card-form" id="customer-form">
+    <div class="modal-head"><h2>${isEdit ? t.titles.editCustomer : t.titles.addCustomer}</h2><button type="button" data-close>&times;</button></div>
+    <div class="form-grid">
+      <label>${t.fields.customerName}<input required name="name" value="${escapeAttr(customer?.name || '')}" /></label>
+      <label>${t.fields.dealStage}<select name="stage">${enumOptions(t.customerStage, customer?.stage || 'quote')}</select></label>
+      <label>${t.fields.price}<input type="number" min="0" step="0.01" name="price" value="${escapeAttr(customer?.price || 0)}" /></label>
+      <label>${t.fields.contactPerson}<input name="contact_person" value="${escapeAttr(customer?.contact_person || '')}" /></label>
+      <label>${t.fields.phone}<input name="phone" value="${escapeAttr(customer?.phone || '')}" /></label>
+      <label>${t.fields.email}<input type="email" name="email" value="${escapeAttr(customer?.email || '')}" /></label>
+      <label class="wide">${t.fields.dealDescription}<textarea name="deal_description">${escapeHtml(customer?.deal_description || '')}</textarea></label>
+      <label class="wide">${t.fields.notes}<textarea name="notes">${escapeHtml(customer?.notes || '')}</textarea></label>
+    </div>
+    <div class="modal-actions"><button type="button" class="ghost" data-close>${t.common.cancel}</button><button class="primary">${UI.icon('save')}${t.common.save}</button></div>
+  </form></div>`;
+  document.querySelectorAll('[data-close]').forEach((button) => button.onclick = closeModal);
+  document.getElementById('customer-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const body = Object.fromEntries(new FormData(event.target).entries());
+    if (!body.name.trim()) return UI.toast(t.messages.requiredName);
+    isEdit ? await Api.updateCustomer(customer.id, body) : await Api.createCustomer(body);
+    closeModal();
+    await loadAll();
+    renderView();
+    UI.toast(t.messages.saved);
+  };
+}
+
+async function removeCustomer(id) {
+  await Api.deleteCustomer(id);
+  await loadAll();
+  renderView();
+  UI.toast(t.messages.deleted);
+}
+
+function formatMoney(value) {
+  const amount = Number(value || 0);
+  return `${amount.toLocaleString('he-IL', { maximumFractionDigits: 2 })} ${t.common.currency}`;
+}
 function renderSettings() {
   setHeader(t.titles.settings, t.subtitles.settings);
   document.getElementById('toolbar-actions').innerHTML = '';

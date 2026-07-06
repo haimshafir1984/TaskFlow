@@ -5,9 +5,11 @@ const { initDatabase } = require('./database/db');
 const TaskRepository = require('./repositories/taskRepository');
 const ProjectRepository = require('./repositories/projectRepository');
 const ContactRepository = require('./repositories/contactRepository');
+const CustomerRepository = require('./repositories/customerRepository');
 const CategoryRepository = require('./repositories/categoryRepository');
 const PriorityRepository = require('./repositories/priorityRepository');
 const TaskService = require('./services/taskService');
+const CustomerService = require('./services/customerService');
 const CatalogService = require('./services/catalogService');
 const SettingsService = require('./services/settingsService');
 const AuthService = require('./services/authService');
@@ -22,6 +24,7 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const taskRepository = new TaskRepository(db);
   const projectRepository = new ProjectRepository(db);
   const contactRepository = new ContactRepository(db);
+  const customerRepository = new CustomerRepository(db);
   const categoryRepository = new CategoryRepository(db);
   const priorityRepository = new PriorityRepository(db);
   const settingsService = new SettingsService(db, dbPath);
@@ -29,6 +32,7 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const services = {
     authService: new AuthService(db, catalogService),
     taskService: new TaskService(taskRepository),
+    customerService: new CustomerService(customerRepository),
     catalogService,
     settingsService
   };

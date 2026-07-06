@@ -532,6 +532,34 @@ tbody tr:hover {
   font-size: 13px;
 }
 
+.customer-card {
+  gap: 10px;
+}
+
+.customer-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.customer-card-head h3 {
+  margin: 0;
+}
+
+.stage-badge {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.customer-card strong {
+  font-size: 20px;
+}
 .cards-list,
 .settings-grid {
   display: grid;
