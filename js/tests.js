@@ -59,6 +59,36 @@ async function run() {
 
     const deleted = await api(port, first.body.token, `/customers/${customer.body.id}`, { method: 'DELETE' });
     assert.strictEqual(deleted.status, 204);
+
+    const quickTask = await api(port, first.body.token, '/tasks', { method: 'POST', body: { name: 'quick task' } });
+    assert.strictEqual(quickTask.status, 201);
+    assert.strictEqual(quickTask.body.status, 'open');
+
+    const completedTask = await api(port, first.body.token, `/tasks/${quickTask.body.id}/complete`, { method: 'POST' });
+    assert.strictEqual(completedTask.status, 200);
+
+    const activeTasks = await api(port, first.body.token, '/tasks?exclude_completed=1');
+    assert.strictEqual(activeTasks.status, 200);
+    assert.strictEqual(activeTasks.body.some((task) => task.id === quickTask.body.id), false);
+
+    const allTasks = await api(port, first.body.token, '/tasks');
+    assert.strictEqual(allTasks.body.some((task) => task.id === quickTask.body.id), true);
+
+    await new Promise((resolve) => server.close(resolve));
+    const restarted = await startServer({ dataDir, host: '127.0.0.1' });
+    try {
+      const status = await api(restarted.port, first.body.token, '/auth/status');
+      assert.strictEqual(status.status, 200);
+      assert.strictEqual(status.body.authenticated, true);
+      assert.strictEqual(status.body.user.username, 'user-a');
+
+      const loggedOut = await api(restarted.port, first.body.token, '/auth/logout', { method: 'POST' });
+      assert.strictEqual(loggedOut.status, 200);
+      const statusAfterLogout = await api(restarted.port, first.body.token, '/auth/status');
+      assert.strictEqual(statusAfterLogout.body.authenticated, false);
+    } finally {
+      await new Promise((resolve) => restarted.server.close(resolve));
+    }
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

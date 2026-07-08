@@ -268,6 +268,53 @@ tbody tr:hover {
   background: rgba(47, 128, 237, 0.04);
 }
 
+tbody tr.cat-row {
+  background: color-mix(in srgb, var(--cat-color) 7%, transparent);
+}
+
+tbody tr.cat-row:hover {
+  background: color-mix(in srgb, var(--cat-color) 13%, transparent);
+}
+
+tbody tr.cat-row td:first-child {
+  border-inline-start: 3px solid var(--cat-color);
+}
+
+.quick-add-row td {
+  padding: 8px 12px;
+  background: var(--surface-2);
+}
+
+.quick-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-add-plus {
+  display: inline-grid;
+  place-items: center;
+  color: var(--primary);
+}
+
+#quick-add-input {
+  min-height: 38px;
+  border-color: transparent;
+  background: transparent;
+}
+
+#quick-add-input:focus {
+  border-color: var(--primary);
+  background: var(--surface);
+}
+
+.quick-add-button {
+  min-height: 34px;
+  padding: 0 14px;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
 .column-picker {
   display: grid;
   gap: 10px;

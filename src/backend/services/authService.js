@@ -1,10 +1,12 @@
 const crypto = require('crypto');
 
+const SESSION_TTL_DAYS = 30;
+
 class AuthService {
   constructor(db, catalogService = null) {
     this.db = db;
     this.catalogService = catalogService;
-    this.tokens = new Map();
+    this.db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(new Date().toISOString());
   }
 
   hasUsers() {
@@ -47,17 +49,26 @@ class AuthService {
 
   createSession(user) {
     const token = crypto.randomBytes(32).toString('hex');
-    this.tokens.set(token, { id: Number(user.id), username: user.username });
+    const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    this.db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)')
+      .run(token, Number(user.id), expiresAt);
     return { token, user: { id: Number(user.id), username: user.username } };
   }
 
   logout(token) {
-    this.tokens.delete(token);
+    if (token) this.db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
     return { ok: true };
   }
 
   verify(token) {
-    return token ? this.tokens.get(token) || null : null;
+    if (!token) return null;
+    const row = this.db.prepare(`
+      SELECT users.id, users.username
+      FROM sessions
+      JOIN users ON users.id = sessions.user_id
+      WHERE sessions.token = ? AND sessions.expires_at > ?
+    `).get(token, new Date().toISOString());
+    return row ? { id: Number(row.id), username: row.username } : null;
   }
 
   changePassword(userId, currentPassword, nextPassword) {
@@ -70,9 +81,7 @@ class AuthService {
     const salt = crypto.randomBytes(16).toString('hex');
     this.db.prepare('UPDATE users SET password_salt = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(salt, hashPassword(String(nextPassword || ''), salt), Number(userId));
-    for (const [token, session] of this.tokens.entries()) {
-      if (session.id === Number(userId)) this.tokens.delete(token);
-    }
+    this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(Number(userId));
     return { ok: true };
   }
 }

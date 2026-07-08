@@ -15,7 +15,7 @@ const state = {
   contacts: [],
   customers: [],
   settings: {},
-  filters: { sort_by: 'created_at', sort_dir: 'desc' },
+  filters: loadTaskFilters(),
   visibleTaskColumns: loadVisibleTaskColumns(),
   dashboardWidgets: loadDashboardWidgets(),
   showColumnPicker: false,
@@ -39,9 +39,8 @@ async function init() {
 }
 
 async function loadAll() {
-  const query = new URLSearchParams(Object.entries(state.filters).filter(([, value]) => value)).toString();
   const [tasks, projects, categories, priorities, contacts, customers, settings] = await Promise.all([
-    Api.tasks(query ? `?${query}` : ''),
+    Api.tasks(buildTaskQuery()),
     Api.projects(),
     Api.categories(),
     Api.priorities(),
@@ -51,6 +50,21 @@ async function loadAll() {
   ]);
   Object.assign(state, { tasks, projects, categories, priorities, contacts, customers, settings });
   document.body.classList.toggle('dark', settings.theme === 'dark');
+}
+
+function buildTaskQuery() {
+  const filters = { ...state.filters };
+  if (filters.status === 'active') {
+    delete filters.status;
+    filters.exclude_completed = '1';
+  }
+  const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value)).toString();
+  return query ? `?${query}` : '';
+}
+
+async function reloadTasks() {
+  state.tasks = await Api.tasks(buildTaskQuery());
+  renderTasks();
 }
 
 async function renderLogin(status = null, mode = null) {
@@ -113,8 +127,10 @@ function renderShell() {
     renderLogin();
   };
   document.querySelectorAll('[data-nav]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       state.view = button.dataset.nav;
+      renderView();
+      await loadAll();
       renderView();
     });
   });
@@ -161,20 +177,57 @@ function renderTasks() {
       ${columnVisible('category') ? `<select id="category-filter"><option value="">${t.fields.category}: ${t.common.all}</option>${options(state.categories, state.filters.category_id)}</select>` : ''}
       ${columnVisible('project') ? `<select id="project-filter"><option value="">${t.fields.project}: ${t.common.all}</option>${options(projectsForCategory(state.filters.category_id), state.filters.project_id)}</select>` : ''}
       ${columnVisible('priority') ? `<select id="priority-filter"><option value="">${t.fields.priority}: ${t.common.all}</option>${priorityOptions(state.filters.priority)}</select>` : ''}
-      ${columnVisible('status') ? `<select id="status-filter"><option value="">${t.fields.status}: ${t.common.all}</option>${enumOptions(t.status, state.filters.status)}</select>` : ''}
+      ${columnVisible('status') ? `<select id="status-filter"><option value="">${t.fields.status}: ${t.common.all}</option><option value="active" ${state.filters.status === 'active' ? 'selected' : ''}>${t.common.activeTasks}</option>${enumOptions(t.status, state.filters.status)}</select>` : ''}
       ${columnVisible('due_date') ? `<input id="from-date" type="date" value="${state.filters.from_date || ''}" /><input id="to-date" type="date" value="${state.filters.to_date || ''}" />` : ''}
       <select id="sort-by">${sortOptions()}</select>
     </div>
     <div class="panel table-panel">
       <table>
         <thead><tr>${visibleColumns.map((column) => `<th>${taskColumnLabel(column)}</th>`).join('')}</tr></thead>
-        <tbody>${state.tasks.map((task) => taskRow(task, visibleColumns)).join('') || emptyRow(visibleColumns.length)}</tbody>
+        <tbody>${quickAddRow(visibleColumns.length)}${state.tasks.map((task) => taskRow(task, visibleColumns)).join('') || emptyRow(visibleColumns.length)}</tbody>
       </table>
     </div>
   `;
   bindColumnPicker();
   bindFilters();
   bindTaskActions();
+  bindQuickAdd();
+}
+
+function quickAddRow(cols) {
+  return `<tr class="quick-add-row"><td colspan="${cols}">
+    <div class="quick-add">
+      <span class="quick-add-plus">${UI.icon('plus')}</span>
+      <input id="quick-add-input" placeholder="${t.common.quickAddPlaceholder}" autocomplete="off" />
+      <button type="button" class="primary quick-add-button" id="quick-add-button">${t.common.add}</button>
+    </div>
+  </td></tr>`;
+}
+
+function bindQuickAdd() {
+  const input = document.getElementById('quick-add-input');
+  const button = document.getElementById('quick-add-button');
+  if (!input || !button) return;
+  const submit = async () => {
+    const name = input.value.trim();
+    if (!name) return input.focus();
+    const body = { name };
+    if (state.filters.category_id) body.category_id = state.filters.category_id;
+    if (state.filters.project_id) body.project_id = state.filters.project_id;
+    if (state.filters.priority) body.priority = state.filters.priority;
+    if (state.filters.status && state.filters.status !== 'active') body.status = state.filters.status;
+    await Api.createTask(body);
+    await reloadTasks();
+    UI.toast(t.messages.taskSaved);
+    document.getElementById('quick-add-input')?.focus();
+  };
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      submit();
+    }
+  });
+  button.onclick = submit;
 }
 
 function columnPicker() {
@@ -200,7 +253,8 @@ function taskColumnLabel(column) {
 }
 
 function taskRow(task, columns) {
-  return `<tr>${columns.map((column) => taskCell(task, column)).join('')}</tr>`;
+  const tint = task.category_color ? ` class="cat-row" style="--cat-color:${escapeAttr(task.category_color)}"` : '';
+  return `<tr${tint}>${columns.map((column) => taskCell(task, column)).join('')}</tr>`;
 }
 
 function taskCell(task, column) {
@@ -232,7 +286,9 @@ function bindColumnPicker() {
       localStorage.setItem('taskflow_task_columns', JSON.stringify(state.visibleTaskColumns));
       if (!state.visibleTaskColumns.includes(state.filters.sort_by)) {
         state.filters.sort_by = SORT_FIELDS.find((field) => state.visibleTaskColumns.includes(field)) || state.filters.sort_by;
-        await loadAll();
+        saveTaskFilters();
+        await reloadTasks();
+        return;
       }
       renderTasks();
     });
@@ -253,8 +309,8 @@ function bindFilters() {
       sort_by: document.getElementById('sort-by').value,
       sort_dir: 'desc'
     };
-    await loadAll();
-    renderTasks();
+    saveTaskFilters();
+    await reloadTasks();
   };
   document.querySelectorAll('.filters input, .filters select').forEach((control) => control.addEventListener('input', debounce(apply, 250)));
 }
@@ -303,8 +359,7 @@ async function quickUpdateTask(id, patch) {
   };
   if (!String(body.name || '').trim()) return UI.toast(t.messages.requiredTaskName);
   await Api.updateTask(id, body);
-  await loadAll();
-  renderTasks();
+  await reloadTasks();
   UI.toast(t.messages.quickSaved);
 }
 
@@ -342,23 +397,20 @@ function openTaskModal(task = null) {
     if (!body.name.trim()) return UI.toast(t.messages.requiredTaskName);
     if (isEdit) await Api.updateTask(task.id, body); else await Api.createTask(body);
     closeModal();
-    await loadAll();
-    renderView();
+    await reloadTasks();
     UI.toast(t.messages.taskSaved);
   };
 }
 
 async function removeTask(id) {
   await Api.deleteTask(id);
-  await loadAll();
-  renderView();
+  await reloadTasks();
   UI.toast(t.messages.deleted);
 }
 
 async function mutateTask(action) {
   await action();
-  await loadAll();
-  renderView();
+  await reloadTasks();
 }
 
 function renderDashboard() {
@@ -700,6 +752,20 @@ function closeModal() {
 function projectsForCategory(categoryId) {
   if (!categoryId) return state.projects;
   return state.projects.filter((project) => String(project.category_id || '') === String(categoryId));
+}
+
+function loadTaskFilters() {
+  const defaults = { status: 'active', sort_by: 'created_at', sort_dir: 'desc' };
+  try {
+    const saved = JSON.parse(localStorage.getItem('taskflow_task_filters') || 'null');
+    return saved && typeof saved === 'object' ? { ...defaults, ...saved } : defaults;
+  } catch (error) {
+    return defaults;
+  }
+}
+
+function saveTaskFilters() {
+  localStorage.setItem('taskflow_task_filters', JSON.stringify(state.filters));
 }
 
 function loadVisibleTaskColumns() {

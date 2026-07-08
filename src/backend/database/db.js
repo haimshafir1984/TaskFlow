@@ -129,6 +129,7 @@ function migrateExistingDatabase() {
   db.exec('CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_priorities_user_id ON priorities(user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_user_name ON categories(user_id, name)');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_priorities_user_key ON priorities(user_id, key)');
 }

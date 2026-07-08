@@ -28,7 +28,9 @@ window.I18N = {
     tasksCount: '\u05de\u05e9\u05d9\u05de\u05d5\u05ea',
     subcategoriesCount: '\u05ea\u05ea\u05d9 \u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d5\u05ea',
     relatedTasks: '\u05de\u05e9\u05d9\u05de\u05d5\u05ea \u05e7\u05e9\u05d5\u05e8\u05d5\u05ea',
-    currency: '₪'
+    currency: '₪',
+    quickAddPlaceholder: 'הוספה מהירה: הקלידו שם משימה ולחצו Enter',
+    activeTasks: 'פעילות (ללא הושלמו)'
   },
   fields: {
     status: '\u05e1\u05d8\u05d8\u05d5\u05e1',

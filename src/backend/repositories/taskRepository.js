@@ -37,6 +37,9 @@ class TaskRepository extends BaseRepository {
       where.push('tasks.status = @status');
       params.status = filters.status;
     }
+    if (filters.exclude_completed) {
+      where.push("tasks.status != 'completed'");
+    }
     if (filters.from_date) {
       where.push('date(tasks.due_date) >= date(@from_date)');
       params.from_date = filters.from_date;
