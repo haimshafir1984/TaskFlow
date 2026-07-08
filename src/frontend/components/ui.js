@@ -13,23 +13,66 @@ window.UI = {
       trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15',
       check: 'M20 6 9 17l-5-5',
       copy: 'M8 8h10v12H8zM6 16H4V4h12v2',
-      save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2ZM7 3v6h8'
+      save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2ZM7 3v6h8',
+      logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+      up: 'M18 15 12 9l-6 6',
+      down: 'M6 9l6 6 6-6',
+      close: 'M18 6 6 18M6 6l12 12'
     };
     return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${icons[name] || icons.tasks}"/></svg>`;
   },
-  toast(message) {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2600);
+
+  toastQueue: [],
+  toastShowing: false,
+
+  toast(message, options = {}) {
+    UI.toastQueue.push({ message, options });
+    if (!UI.toastShowing) UI.showNextToast();
   },
+
+  showNextToast() {
+    const next = UI.toastQueue.shift();
+    if (!next) {
+      UI.toastShowing = false;
+      return;
+    }
+    UI.toastShowing = true;
+    const toast = document.getElementById('toast');
+    clearTimeout(toast._hideTimer);
+    toast.innerHTML = '';
+    const text = document.createElement('span');
+    text.textContent = next.message;
+    toast.appendChild(text);
+    if (next.options.actionLabel && next.options.onAction) {
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.className = 'toast-action';
+      action.textContent = next.options.actionLabel;
+      action.onclick = () => {
+        next.options.onAction();
+        toast.classList.remove('show');
+        clearTimeout(toast._hideTimer);
+        setTimeout(UI.showNextToast, 150);
+      };
+      toast.appendChild(action);
+    }
+    toast.classList.add('show');
+    toast._hideTimer = setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(UI.showNextToast, 150);
+    }, next.options.duration || 2600);
+  },
+
   formatDate(value) {
     if (!value) return '';
     return new Intl.DateTimeFormat('he-IL', { dateStyle: 'short' }).format(new Date(value));
   },
+
   dateInput(value) {
     if (!value) return '';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 };

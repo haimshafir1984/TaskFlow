@@ -130,8 +130,27 @@ function migrateExistingDatabase() {
   db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_priorities_user_id ON priorities(user_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_statuses_user_id ON statuses(user_id)');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_user_name ON categories(user_id, name)');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_priorities_user_key ON priorities(user_id, key)');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_statuses_user_key ON statuses(user_id, key)');
+  seedStatusesForExistingUsers();
+}
+
+function seedStatusesForExistingUsers() {
+  const users = db.prepare('SELECT id FROM users').all();
+  const countForUser = db.prepare('SELECT COUNT(*) AS count FROM statuses WHERE user_id = ?');
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO statuses (user_id, key, name, color, sort_order, is_done)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  users.forEach((user) => {
+    if ((countForUser.get(user.id)?.count || 0) > 0) return;
+    insert.run(user.id, 'open', 'פתוחה', '#2563eb', 1, 0);
+    insert.run(user.id, 'in_progress', 'בתהליך', '#b45309', 2, 0);
+    insert.run(user.id, 'completed', 'הושלמה', '#047857', 3, 1);
+    insert.run(user.id, 'blocked', 'חסומה', '#b91c1c', 4, 0);
+  });
 }
 
 function migrateProjectUniqueness() {

@@ -1,9 +1,41 @@
 class CatalogService {
-  constructor(projectRepository, contactRepository, categoryRepository, priorityRepository) {
+  constructor(projectRepository, contactRepository, categoryRepository, priorityRepository, statusRepository) {
     this.projects = projectRepository;
     this.contacts = contactRepository;
     this.categories = categoryRepository;
     this.priorities = priorityRepository;
+    this.statuses = statusRepository;
+  }
+
+  listStatuses(userId) {
+    return this.statuses.list(userId);
+  }
+
+  createStatus(userId, payload) {
+    const name = String(payload.name || '').trim();
+    return this.statuses.create({
+      user_id: Number(userId),
+      key: normalizeKey(payload.key || name),
+      name,
+      color: payload.color || '#2f80ed',
+      sort_order: Number(payload.sort_order || 0),
+      is_done: payload.is_done ? 1 : 0
+    });
+  }
+
+  updateStatus(userId, id, payload) {
+    const name = String(payload.name || '').trim();
+    return this.statuses.update(userId, id, {
+      key: normalizeKey(payload.key || name),
+      name,
+      color: payload.color || '#2f80ed',
+      sort_order: Number(payload.sort_order || 0),
+      is_done: payload.is_done ? 1 : 0
+    });
+  }
+
+  deleteStatus(userId, id) {
+    return this.statuses.deleteForUser(userId, id);
   }
 
 
@@ -128,6 +160,15 @@ class CatalogService {
     insertPriority.run(uid, 'high', '\u05d2\u05d1\u05d5\u05d4\u05d4', '#f59e0b', 3, 1);
     insertPriority.run(uid, 'urgent', '\u05d3\u05d7\u05d5\u05e4\u05d4', '#ef5350', 4, 1);
 
+    const insertStatus = this.statuses.db.prepare(`
+      INSERT OR IGNORE INTO statuses (user_id, key, name, color, sort_order, is_done)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    insertStatus.run(uid, 'open', '\u05e4\u05ea\u05d5\u05d7\u05d4', '#2563eb', 1, 0);
+    insertStatus.run(uid, 'in_progress', '\u05d1\u05ea\u05d4\u05dc\u05d9\u05da', '#b45309', 2, 0);
+    insertStatus.run(uid, 'completed', '\u05d4\u05d5\u05e9\u05dc\u05de\u05d4', '#047857', 3, 1);
+    insertStatus.run(uid, 'blocked', '\u05d7\u05e1\u05d5\u05de\u05d4', '#b91c1c', 4, 0);
+
     const insertCategory = this.categories.db.prepare('INSERT OR IGNORE INTO categories (user_id, name, color, sort_order) VALUES (?, ?, ?, ?)');
     insertCategory.run(uid, '\u05de\u05e9\u05d9\u05de\u05d5\u05ea \u05d0\u05d9\u05e9\u05d9\u05d5\u05ea', '#2f80ed', 1);
     insertCategory.run(uid, '\u05e1\u05d9\u05d3\u05d5\u05e8\u05d9\u05dd', '#12a594', 2);
@@ -151,7 +192,7 @@ function normalizeKey(value) {
     .toLowerCase()
     .replace(/[^a-z0-9_\-]+/g, '_')
     .replace(/^_+|_+$/g, '');
-  return normalized || `priority_${Date.now()}`;
+  return normalized || `option_${Date.now()}`;
 }
 
 module.exports = CatalogService;

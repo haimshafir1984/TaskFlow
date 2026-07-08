@@ -38,7 +38,7 @@ class TaskRepository extends BaseRepository {
       params.status = filters.status;
     }
     if (filters.exclude_completed) {
-      where.push("tasks.status != 'completed'");
+      where.push('tasks.status NOT IN (SELECT key FROM statuses WHERE user_id = @user_id AND is_done = 1)');
     }
     if (filters.from_date) {
       where.push('date(tasks.due_date) >= date(@from_date)');
@@ -129,20 +129,22 @@ class TaskRepository extends BaseRepository {
   }
 
   markComplete(userId, id) {
+    const doneKey = this.db.prepare('SELECT key FROM statuses WHERE user_id = ? AND is_done = 1 ORDER BY sort_order ASC LIMIT 1').get(Number(userId))?.key || 'completed';
     this.db.prepare(`
       UPDATE tasks
-      SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      SET status = ?, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND user_id = ?
-    `).run(id, Number(userId));
+    `).run(doneKey, id, Number(userId));
     return this.findDetailedById(userId, id);
   }
 
   duplicate(userId, id) {
     const original = this.findDetailedById(userId, id);
+    const openKey = this.db.prepare('SELECT key FROM statuses WHERE user_id = ? AND is_done = 0 ORDER BY sort_order ASC LIMIT 1').get(Number(userId))?.key || 'open';
     const copy = {
       ...original,
       name: `${original.name} (2)`,
-      status: 'open',
+      status: openKey,
       completed_at: null,
       created_at: new Date().toISOString(),
       tags: original.tags ? original.tags.split(',').map((tag) => tag.trim()) : []
@@ -156,15 +158,16 @@ class TaskRepository extends BaseRepository {
   }
 
   dashboard(userId) {
+    const uid = Number(userId);
     const summary = this.db.prepare(`
       SELECT
-        SUM(CASE WHEN status != 'completed' THEN 1 ELSE 0 END) AS open_tasks,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_tasks,
-        SUM(CASE WHEN due_date IS NOT NULL AND date(due_date) < date('now') AND status != 'completed' THEN 1 ELSE 0 END) AS overdue_tasks,
+        SUM(CASE WHEN status NOT IN (SELECT key FROM statuses WHERE user_id = ? AND is_done = 1) THEN 1 ELSE 0 END) AS open_tasks,
+        SUM(CASE WHEN status IN (SELECT key FROM statuses WHERE user_id = ? AND is_done = 1) THEN 1 ELSE 0 END) AS completed_tasks,
+        SUM(CASE WHEN due_date IS NOT NULL AND date(due_date) < date('now') AND status NOT IN (SELECT key FROM statuses WHERE user_id = ? AND is_done = 1) THEN 1 ELSE 0 END) AS overdue_tasks,
         SUM(CASE WHEN due_date IS NOT NULL AND date(due_date) = date('now') THEN 1 ELSE 0 END) AS today_tasks
       FROM tasks
       WHERE user_id = ?
-    `).get(Number(userId));
+    `).get(uid, uid, uid, uid);
     const byPriority = this.db.prepare('SELECT priority AS label, COUNT(*) AS value FROM tasks WHERE user_id = ? GROUP BY priority').all(Number(userId));
     const byProject = this.db.prepare(`
       SELECT COALESCE(projects.name, '__NO_PROJECT__') AS label, COUNT(tasks.id) AS value

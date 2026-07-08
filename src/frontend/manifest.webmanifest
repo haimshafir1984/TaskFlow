@@ -16,5 +16,20 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "משימה חדשה",
+      "short_name": "משימה חדשה",
+      "description": "פתיחת TaskFlow עם פוקוס בהוספה מהירה",
+      "url": "/index.html?quick-add=1",
+      "icons": [
+        {
+          "src": "/assets/icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
   ]
 }

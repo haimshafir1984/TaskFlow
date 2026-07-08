@@ -6,7 +6,7 @@
 
 ## תקציר
 
-TaskFlow היא מערכת ניהול משימות ולקוחות בעברית, RTL, עם ממשק Web/PWA ואריזת Electron לדסקטופ. בתחילה תוכננה כאפליקציית Desktop מקומית, ובהמשך הוסטה לכיוון Web/PWA עם DB מרכזי כדי לאפשר שימוש גם מהמחשב וגם מהנייד.
+TaskFlow היא מערכת ניהול משימות ולקוחות בעברית, RTL, עם ממשק Web/PWA ואריזת Electron לדסקטופ. בתחילה תוכננה כאפליקציית Desktop מקומית, ובהמשך הוסטה לכיוון Web/PWA עם DB מרכזי כדי לאפשר שימוש גם מהמחשב וגם מהנייד. משרתת כיום 2 משתמשים; המיקוד הוא נוחות שימוש, מראה נקי וגמישות אישית — לא סקיילינג.
 
 המערכת מותאמת לעברית, ללא Bootstrap וללא jQuery. ה־frontend הוא Vanilla JS/HTML/CSS, וה־backend הוא Node.js + Express + SQLite דרך sql.js.
 
@@ -16,33 +16,23 @@ TaskFlow היא מערכת ניהול משימות ולקוחות בעברית, 
 
 - התחברות ורישום משתמשים פשוטים.
 - הפרדת נתונים לפי משתמש (`user_id`).
-- ניהול משימות מלא.
-- קטגוריות ראשיות.
-- תתי קטגוריות דרך לשונית "תתי קטגוריות"/projects.
-- אנשי קשר.
-- לקוחות בסיסיים.
-- דשבורד עם בחירת ווידג׳טים להצגה.
-- הגדרות, כולל רמות דחיפות דינמיות לכל משתמש.
-- הוספה מהירה של משימה משורת "+" בראש טבלת המשימות (שם בלבד, Enter).
-- צביעה עדינה של שורות המשימות לפי צבע הקטגוריה.
-- זכירת פילטרים ב־localStorage וברירת מחדל "פעילות (ללא הושלמו)".
-- sessions נשמרים ב־DB (טבלת `sessions`) ושורדים restart של השרת.
-- ייבוא/ייצוא CSV בסיסי למשימות.
-- גיבוי/שחזור DB בגרסת Desktop.
-- פריסה ל־Render עם דיסק קבוע.
-- מנגנון נגד cache ישן בדפדפן: אין רישום Service Worker חדש, ונשלחים headers של `no-store` לקבצי האפליקציה.
+- ניהול משימות מלא, כולל הוספה מהירה עם תחביר חכם.
+- קטגוריות ראשיות, תתי קטגוריות, אנשי קשר, לקוחות בסיסיים.
+- דחיפויות **וסטטוסים** דינמיים לכל משתמש (שם/צבע/סדר; לסטטוס גם דגל "נחשב כהושלם").
+- דשבורד עם בחירת ווידג'טים, סדר וגודל תצוגה.
+- **העדפות UI נשמרות ב־DB** (לא רק localStorage) — אותה חוויה בכל מכשיר.
+- תצוגות שמורות (Saved Views), סדר עמודות, צפיפות תצוגה, גודל טקסט, מסך פתיחה, התאמת סיידבר.
+- sessions נשמרים ב־DB ושורדים restart של השרת.
+- מובייל: FAB + תצוגת כרטיסים + swipe (ימין=הושלם, שמאל=מחיקה) + PWA shortcut.
+- קיצורי מקלדת, Undo למחיקה/השלמה, שורות קריאה עם chips, אנימציות עדינות, empty states, נגישות מודלים (focus trap, סגירה ברקע, Esc, שחזור פוקוס).
+- ייבוא/ייצוא CSV בסיסי למשימות, גיבוי/שחזור DB בגרסת Desktop.
+- פריסה ל־Render עם דיסק קבוע; מנגנון נגד cache ישן בדפדפן.
 
 ## סטאק
 
-- Electron
-- Node.js
-- Express
-- SQLite via `sql.js`
-- Vanilla JavaScript
-- HTML
-- CSS
-- electron-builder
-- Render לפריסה Web
+- Electron, Node.js, Express, SQLite via `sql.js`
+- Vanilla JavaScript, HTML, CSS
+- electron-builder, Render לפריסה Web
 
 ## פקודות חשובות
 
@@ -55,8 +45,6 @@ npm run dist:win
 npm start
 ```
 
-פירוט:
-
 - `npm run web` מפעיל שרת Web דרך `src/web/server.js`.
 - `npm start` / `npm run dev` מפעיל Electron.
 - `npm run test` מריץ בדיקות smoke ב־`js/tests.js`.
@@ -65,52 +53,35 @@ npm start
 
 ## פריסה ל־Render
 
-קובץ: `render.yaml`
-
-- service name: `taskflow`
-- runtime: Node
-- region: Frankfurt
-- build command: `npm ci`
-- start command: `npm run web`
-- health check: `/health`
-- disk קבוע:
-  - name: `taskflow-data`
-  - mount path: `/var/data`
-  - size: 1GB
-- env var חשוב:
-  - `TASKFLOW_DATA_DIR=/var/data`
-
-ה־DB ב־Render נשמר בדיסק הקבוע תחת `/var/data`.
+קובץ: `render.yaml` — service `taskflow`, Node, Frankfurt, `npm ci` / `npm run web`, health check `/health`, דיסק קבוע `taskflow-data` ב-`/var/data`, env `TASKFLOW_DATA_DIR=/var/data`.
 
 ## מבנה תיקיות מרכזי
 
 ```text
 src/
   backend/
-    controllers/
+    controllers/   (כולל preferencesController.js)
     database/
     middleware/
-    repositories/
+    repositories/  (כולל statusRepository.js, preferencesRepository.js)
     routes/
-    services/
+    services/      (כולל preferencesService.js)
     validators/
     server.js
   frontend/
     assets/
     components/
       api.js
-      app.js
+      app.js        (~1800 שורות — כל ה-UI logic)
       ui.js
     i18n/
       he.js
     styles/
-      styles.css
+      styles.css    (~1400 שורות)
     index.html
-    manifest.webmanifest
+    manifest.webmanifest  (כולל shortcuts)
     service-worker.js
   main/
-    main.js
-    preload.js
   shared/
   web/
     server.js
@@ -124,44 +95,38 @@ package.json
 
 ### Backend
 
-ה־backend בנוי בסגנון MVC/Service/Repository:
+MVC/Service/Repository: `controllers` מקבלים request/response, `services` מכילים לוגיקה עסקית, `repositories` עובדים מול DB, `routes/index.js` מחבר endpoints, `middleware/auth.js` בודק token, `database/db.js` מאתחל DB/מיגרציות/persist.
 
-- `controllers` מקבלים request/response.
-- `services` מכילים לוגיקה עסקית ונרמול payload.
-- `repositories` עובדים מול DB.
-- `routes/index.js` מחבר endpoints.
-- `middleware/auth.js` בודק token ומוסיף `req.user`.
-- `database/db.js` מאתחל DB, מריץ schema, מיגרציות ו־persist.
+**סטטוסים דינמיים** (`statusRepository.js`): מרכיב במדויק את `priorityRepository.js`. `taskService.normalize(userId, payload)` מולידציה מול הסטטוסים האמיתיים של המשתמש (לא enum קשיח), וקובע ברירת מחדל + `completed_at` לפי `is_done` של הסטטוס שנבחר. `taskRepository`: `exclude_completed`, `dashboard()`, `markComplete()`, `duplicate()` כולם עובדים מול `SELECT key FROM statuses WHERE ... is_done = 1` במקום מחרוזת `'completed'` קבועה. **אין יותר תלות ב-`shared/constants.js` STATUSES** — `taskValidator.validateTask(payload, validStatusKeys)` מקבל את הרשימה התקפה כפרמטר.
+
+**Preferences** (`preferencesRepository.js`): טבלה אחת `user_preferences(user_id PK, data JSON)` — כל ה-blob של העדפות המשתמש (עמודות, פילטרים, תצוגות שמורות, סדר עמודות/ווידג'טים, צפיפות, מסך פתיחה, סיידבר) נשמר כ-JSON יחיד. `GET/PUT /api/preferences`.
 
 ### Frontend
 
-ה־frontend מרוכז בעיקר ב־`src/frontend/components/app.js`:
+`app.js` הוא קובץ אחד גדול (בכוונה — ללא build step/bundler). מבנה עיקרי:
 
-- state גלובלי בצד לקוח.
-- render לפי לשונית פעילה.
-- CRUD modals.
-- inline editing למשימות.
-- שמירת בחירת עמודות ודשבורד ב־`localStorage`.
+- `state` גלובלי + `state.prefs` (מסונכרן מול השרת, עם cache ב-localStorage וגיבוי migration חד-פעמי ממפתחות ה-localStorage הישנים).
+- `renderTasks()` / `taskCell()` — כל תא לא-actions הוא **read-mode כברירת מחדל** (chip/טקסט, קליק להפעלת עריכה) דרך `state.editingCells` (Set), חוץ מהעמודה `name` שנשארת input תמיד. `editableCell()`/`readOnlyCell()`/`dueDateCell()`/`createdDateCell()`.
+- הוספה מהירה עם parser (`parseQuickAddInput`): `!דחיפות`, `#קטגוריה/תת-קטגוריה`, `@תאריך` (היום/מחר/מחרתיים/שם יום/dd/mm[/yyyy]) + preview chips חיים.
+- Optimistic UI: הוספה מהירה, עריכת שדה בשורה (`quickUpdateTask`), מחיקה/השלמה (Undo 5 שניות) — כולם מעדכנים DOM מיד ומתקנים אחורה אם השרת נכשל (`t.messages.networkError`).
+- Bulk actions: checkbox לכל שורה + "בחר הכול" → `bulkActionsBar()` (השלמה/מחיקה/העברת קטגוריה לנבחרים).
+- קיבוץ לפי קטגוריה (`groupedTaskRows`) — טוגל ב-filters, client-side בלבד.
+- תצוגות שמורות (`savedViewsBar`, `applySavedView`) ב-`state.prefs.savedViews`.
+- מובייל (≤760px): טבלה הופכת לכרטיסים דרך CSS (`data-label` + `content: attr()`, לא render path נפרד), FAB פותח bottom-sheet (`openQuickAddSheet`), swipe (`bindSwipeGestures`, touch בלבד — לא משפיע על דסקטופ).
+- נגישות מודלים: `bindGlobalUiHandlers` (קליק על backdrop סוגר), `trapFocus` (Tab בתוך מודל), `lastFocusedElement` (שחזור פוקוס ב-`closeModal`). כל פונקציית `open*Modal` מתחילה ב-`lastFocusedElement = document.activeElement;`.
+- קיצורי מקלדת: `bindGlobalShortcuts` — `N`/`/` פוקוס להוספה, `Esc` סגירה, `Ctrl+Enter` שמירה, `?` חלונית עזרה.
 
 קבצים נוספים:
 
-- `api.js` - עטיפה לקריאות `/api` ושמירת token ב־`localStorage`.
-- `ui.js` - icons, toast, תאריכים.
-- `he.js` - כל הטקסטים בעברית במקום אחד.
-- `styles.css` - עיצוב RTL, Windows 11 style, light theme, responsive.
+- `api.js` - עטיפה ל-`/api`, כולל `statuses`/`preferences`.
+- `ui.js` - icons (כולל `up`/`down`/`logout`/`close`), **toast עם תור** (`UI.toastQueue`, תומך `{actionLabel, onAction, duration}`), `dateInput` תוקן ל-local date (לא `toISOString` — נמנע מבאג timezone).
+- `he.js` - כל הטקסטים בעברית.
+- `styles.css` - כולל chips דינמיים (`color-mix`), כרטיסי מובייל, FAB/bottom-sheet, אנימציות (`@media (prefers-reduced-motion: reduce)` מכובד).
 
 ## Authentication ומשתמשים
 
-המודל כרגע פשוט:
-
-- משתמש נרשם עם שם משתמש וסיסמה.
-- אין הגבלת אורך סיסמה.
-- הסיסמה נשמרת כ־SHA256 עם salt.
-- session token נשמר בטבלת `sessions` ב־DB (תפוגה 30 יום) וב־localStorage בדפדפן.
-- sessions שורדים restart/deploy של השרת; sessions שפגו מנוקים באתחול.
-- כל נתוני המשתמש מופרדים לפי `user_id`.
-
-Endpoints:
+- session token בטבלת `sessions` ב־DB (תפוגה 30 יום), שורד restart.
+- הסיסמה SHA256+salt. `<form onsubmit="return false">` כ-fallback נגד submit נייטיבי לפני שה-JS נקשר.
 
 ```text
 POST /api/auth/register
@@ -171,219 +136,66 @@ POST /api/auth/logout
 POST /api/auth/change-password
 ```
 
-הערה: זה auth בסיסי מאוד, לא אבטחה מלאה למערכת ציבורית רחבה. אם יהיו לקוחות אמיתיים רבים, צריך לשדרג בהמשך ל־sessions/JWT יציב, hash חזק יותר כמו bcrypt/argon2, rate limiting ועוד.
+הערה: auth בסיסי, לא מתאים לקהל רחב ללא שדרוג (bcrypt/argon2, rate limiting) — לא רלוונטי כרגע (2 משתמשים מוכרים).
 
 ## Database
 
 קובץ schema: `src/backend/database/schema.sql`
 
-טבלאות קיימות:
+טבלאות: `users`, `sessions`, `categories`, `projects`, `contacts`, `customers`, `priorities`, **`statuses`**, **`user_preferences`**, `tasks`, `tags`, `task_tags`, `settings`.
 
-- `users`
-- `sessions` - session tokens עם `expires_at`
-- `tasks`
-- `categories`
-- `projects`
-- `contacts`
-- `customers`
-- `priorities`
-- `tags`
-- `task_tags`
-- `settings`
+### statuses (חדש)
 
-### users
+מרכיב `priorities` בדיוק: `user_id`, `key`, `name`, `color`, `sort_order`, **`is_done`** (0/1), `created_at`/`updated_at`. אינדקס ייחודי `(user_id, key)`.
 
-שדות מרכזיים:
+ברירת מחדל לכל משתמש (גם חדש דרך `catalogService.seedUserDefaults`, גם קיים דרך מיגרציה ב-`db.js`):
 
-- `id`
-- `username`
-- `password_hash`
-- `password_salt`
-- `created_at`
-- `updated_at`
+| key | name | is_done |
+|---|---|---|
+| open | פתוחה | 0 |
+| in_progress | בתהליך | 0 |
+| completed | הושלמה | 1 |
+| blocked | חסומה | 0 |
 
-### tasks
+**חשוב:** `tasks.status` נשאר עמודת TEXT רגילה עם ערך ברירת מחדל `'open'` — לא שונה סכמטית. הדינמיות היא רק בטבלת ה-lookup `statuses` ובקוד שמפרש אותה.
 
-שדות מרכזיים:
+### user_preferences (חדש)
 
-- `user_id`
-- `name`
-- `description`
-- `project_id`
-- `category_id`
-- `contact_id`
-- `priority`
-- `status`
-- `created_at`
-- `due_date`
-- `notes`
-- `completed_at`
+`user_id` (PK), `data` (TEXT — JSON blob), `updated_at`. מבנה ה-JSON (כל השדות אופציונליים, עם defaults ב-`defaultPreferences()` ב-`app.js`):
 
-סטטוסים:
+```text
+taskFilters, visibleTaskColumns, taskColumnOrder, dashboardWidgets,
+dashboardPanelOrder, dashboardWidgetSize, savedViews, density,
+fontSize, homeView, sidebarOrder, sidebarHidden
+```
 
-- `open`
-- `in_progress`
-- `completed`
-- `blocked`
+### tasks / categories / projects / contacts / customers / priorities
 
-### categories
-
-קטגוריה ראשית.
-
-שדות:
-
-- `user_id`
-- `name`
-- `color`
-- `description`
-- `sort_order`
-
-דוגמאות ברירת מחדל שנזרעות למשתמש חדש:
-
-- משימות אישיות
-- סידורים
-- משפחה
-- פיתוח עסקי
-- קניות
-
-### projects
-
-תת קטגוריה.
-
-שדות:
-
-- `user_id`
-- `name`
-- `category_id`
-- `color`
-- `description`
-
-דוגמאות תחת קניות:
-
-- קניות קטנות
-- קניות גדולות
-- סופר ומוצרי מזון
-
-### contacts
-
-אנשי קשר פשוטים:
-
-- `name`
-- `phone`
-- `email`
-- `notes`
-
-### customers
-
-אזור לקוחות בסיסי ונפרד מניהול המשימות.
-
-שדות:
-
-- `user_id`
-- `name` - שם לקוח
-- `deal_description` - מהות העסקה, טקסט חופשי
-- `stage` - שלב
-- `price` - מחיר
-- `contact_person` - איש קשר
-- `phone`
-- `email`
-- `notes`
-
-שלבים קיימים:
-
-- `quote` - ניתנה הצעת מחיר
-- `closed` - נסגר
-
-כרגע אין קשר DB בין לקוחות למשימות. בהמשך אפשר להוסיף `customer_id` ל־`tasks`.
-
-### priorities
-
-רמות דחיפות דינמיות לפי משתמש.
-
-שדות:
-
-- `user_id`
-- `key`
-- `name`
-- `color`
-- `sort_order`
-- `is_default`
-
-ברירת מחדל למשתמש חדש:
-
-- נמוכה
-- בינונית
-- גבוהה
-- דחופה
+ללא שינוי מבני מהותי (ראו גרסה קודמת של מסמך זה ב-git history לפירוט מלא של שדות אם צריך). תזכורת: קטגוריה = ראשית, `projects` = תת קטגוריה בקוד.
 
 ## API קיים
 
-כל routes חוץ מ־auth דורשים Authorization header:
-
-```text
-Authorization: Bearer <token>
-```
-
-### Tasks
+כל routes חוץ מ־auth דורשים `Authorization: Bearer <token>`.
 
 ```text
 GET    /api/dashboard
-GET    /api/tasks
+GET    /api/tasks              (תומך exclude_completed=1 בנוסף לפילטרים הרגילים)
 POST   /api/tasks
 PUT    /api/tasks/:id
 DELETE /api/tasks/:id
 POST   /api/tasks/:id/complete
 POST   /api/tasks/:id/duplicate
-```
 
-### Priorities
+GET/POST/PUT/DELETE /api/priorities[/:id]
+GET/POST/PUT/DELETE /api/categories[/:id]
+GET/POST/PUT/DELETE /api/projects[/:id]
+GET/POST/PUT/DELETE /api/customers[/:id]
+GET/POST/PUT/DELETE /api/contacts[/:id]
+GET/POST/PUT/DELETE /api/statuses[/:id]      (חדש — כמו priorities, plus is_done)
 
-```text
-GET    /api/priorities
-POST   /api/priorities
-PUT    /api/priorities/:id
-DELETE /api/priorities/:id
-```
+GET /api/preferences                          (חדש)
+PUT /api/preferences                          (חדש — מחליף את כל ה-blob)
 
-### Categories
-
-```text
-GET    /api/categories
-POST   /api/categories
-PUT    /api/categories/:id
-DELETE /api/categories/:id
-```
-
-### Projects / Subcategories
-
-```text
-GET    /api/projects
-POST   /api/projects
-PUT    /api/projects/:id
-DELETE /api/projects/:id
-```
-
-### Customers
-
-```text
-GET    /api/customers
-POST   /api/customers
-PUT    /api/customers/:id
-DELETE /api/customers/:id
-```
-
-### Contacts
-
-```text
-GET    /api/contacts
-POST   /api/contacts
-PUT    /api/contacts/:id
-DELETE /api/contacts/:id
-```
-
-### Settings
-
-```text
 GET  /api/settings
 POST /api/settings
 POST /api/settings/backup
@@ -394,141 +206,58 @@ POST /api/settings/import-csv
 
 ## UI ולשוניות
 
-הסיידבר כולל:
-
-- לוח בקרה
-- משימות
-- לקוחות
-- קטגוריות
-- תתי קטגוריות
-- אנשי קשר
-- הגדרות
+הסיידבר: לוח בקרה, משימות, לקוחות, קטגוריות, תתי קטגוריות, אנשי קשר, הגדרות. **ניתן להסתיר ולסדר מחדש** דרך הגדרות (חוץ מ"הגדרות" עצמו, שנשאר תמיד גלוי). מסך הפתיחה אחרי login ניתן לבחירה (`state.prefs.homeView`).
 
 ## מסך משימות
 
-קיים:
-
-- טבלת משימות.
-- בחירת עמודות להצגה.
-- חיפוש וסינון.
-- סינון לפי קטגוריה, תת קטגוריה, דחיפות, סטטוס, תאריכים.
-- מיון לפי דחיפות, תאריך יצירה, תאריך יעד, תת קטגוריה, קטגוריה.
-- פעולות שורה: עריכה, מחיקה, סימון הושלם, שכפול.
-- עריכה מהירה מתוך הטבלה לחלק מהשדות.
-- הוספה מהירה: שורת "+" בראש הטבלה - שם + Enter יוצר משימה, הפוקוס נשאר להוספה רציפה. הוספה תחת פילטר פעיל יורשת קטגוריה/תת/דחיפות.
-- שורות צבועות בעדינות לפי צבע הקטגוריה (`--cat-color`, class `cat-row`).
-- ברירת מחדל של פילטר סטטוס: "פעילות (ללא הושלמו)" - ערך פסאודו `active` שממופה ל־`exclude_completed=1` ב־API.
-- פילטרים נשמרים ב־localStorage תחת `taskflow_task_filters`.
-- מוטציות של משימות מרעננות רק את `/api/tasks` (לא `loadAll`); מעבר לשונית מרענן הכול.
-- יצירת משימה חדשה במודל.
-- שדה חובה יחיד: שם משימה.
-- כפתור שמירה עליון ותחתון במודל.
+- שורת "+" בראש הטבלה עם תחביר חכם (`!דחיפות #קטגוריה @תאריך`) + preview chips.
+- כל תא (חוץ מ-actions) הוא chip/טקסט קריא; קליק הופך אותו לעריכה (select/input), יציאה אוטומטית ב-blur/שמירה.
+- checkbox לכל שורה + "בחר הכול" → פס bulk actions (השלמה/מחיקה/העברת קטגוריה).
+- קיבוץ לפי קטגוריה (טוגל ליד המיון).
+- תצוגות שמורות (chips מעל הטבלה, "שמירת תצוגה" עם `prompt()` לשם).
+- בחירת/סדר עמודות (חיצים למעלה/למטה ב-column picker; `actions` תמיד קבוע אחרון).
+- badge לתאריך יעד + צ'יפים "היום"/"מחר" (בשורה — רק בפוקוס; במודל — גם "+שבוע").
+- Undo 5 שניות למחיקה/השלמה (`UNDO_WINDOW_MS`). **הערה:** אם עובר זמן אמיתי >5 שניות בין הפעולה ל"בטל" (למשל בבדיקות עם השהיה), הפעולה מתבצעת בפועל — זה חלון קשיח, לא מתאפס.
+- מובייל: כרטיסים במקום טבלה (CSS בלבד), FAB לפתיחת bottom-sheet, swipe (ימין=הושלם, שמאל=מחיקה).
 
 ## דשבורד
 
-הדשבורד מציג נתונים לפי בחירת המשתמש.
+ווידג'טים: משימות פתוחות/שהושלמו/באיחור/להיום (כרטיסים), לפי דחיפות/קטגוריה/תת-קטגוריה/פעילות אחרונה (panels — עם סדר וגודל "רוחב מלא" הניתנים להגדרה).
 
-ווידג׳טים זמינים:
+## הגדרות
 
-- משימות פתוחות
-- משימות שהושלמו
-- משימות באיחור
-- משימות להיום
-- לפי דחיפות
-- לפי קטגוריה
-- לפי תת קטגוריה
-- פעילות אחרונה
-
-בחירת הדשבורד נשמרת ב־`localStorage` תחת:
-
-```text
-taskflow_dashboard_widgets
-```
-
-## בחירת עמודות במשימות
-
-בחירת עמודות נשמרת ב־`localStorage` תחת:
-
-```text
-taskflow_task_columns
-```
+מצב בהיר/כהה, גיבוי/שחזור/CSV, **תצוגה** (צפיפות טבלה, גודל טקסט, מסך פתיחה), **תפריט צד** (הסתרה/סדר), **רמות דחיפות**, **סטטוסים** (ניהול מלא כמו דחיפויות, כולל "נחשב כהושלם").
 
 ## Cache / Service Worker
 
-הייתה בעיה שבה הדפדפן המשיך לפתוח גרסה ישנה אחרי deploy עד `Ctrl+F5`.
-
-תיקון שבוצע:
-
-- `index.html` לא רושם Service Worker חדש.
-- בטעינת העמוד הוא מנקה Service Workers קיימים ו־Cache Storage.
-- `server.js` מחזיר `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate` עבור HTML/JS/CSS/manifest/service-worker ו־SPA fallback.
-
-חשוב: במחשב שכבר תקוע על Service Worker ישן ייתכן שנדרש `Ctrl+F5` פעם אחת אחרי deploy. אחר כך זה אמור להיפתר.
+ללא שינוי: `index.html` לא רושם Service Worker חדש, מנקה קיימים; `server.js` שולח `no-store` לקבצי אפליקציה. `manifest.webmanifest` כולל `shortcuts` (לחיצה ארוכה על האייקון בנייד → `/?quick-add=1`, שהאפליקציה מזהה ופותחת הוספה מהירה ישירות).
 
 ## Electron/Desktop
 
-קבצים:
-
-- `src/main/main.js`
-- `src/main/preload.js`
-
-ב־Electron ה־DB אמור להיווצר אוטומטית ב־user data directory. ב־Web/Render ה־DB נשמר תחת `TASKFLOW_DATA_DIR`.
+`src/main/main.js`, `src/main/preload.js` — ללא שינוי בשלב זה.
 
 ## בדיקות
 
-קובץ בדיקות: `js/tests.js`
-
-הבדיקות כוללות כרגע:
-
-- ולידציה בסיסית של משימה.
-- רישום משתמשים.
-- שגיאת username כפול עם `USERNAME_EXISTS`.
-- CRUD בסיסי ללקוחות.
-- בדיקת בידוד לקוחות בין משתמשים.
-
-הרצה:
-
-```powershell
-npm run test
-```
+`js/tests.js` — ולידציה, רישום, CRUD לקוחות, בידוד בין משתמשים, **יצירת/השלמת משימה עם `exclude_completed`**, **session ששורד restart**. הרצה: `npm run test`.
 
 ## כללי פיתוח חשובים
 
-- כל טקסט UI צריך להיות ב־`src/frontend/i18n/he.js`.
-- לשמור על RTL ועברית כברירת מחדל.
-- לא להשתמש ב־Bootstrap או jQuery.
-- לשמור על Vanilla JS.
-- רצוי להמשיך בתבנית Repository/Service/Controller ב־backend.
-- לכל טבלה עסקית חדשה להוסיף `user_id` מההתחלה.
-- כל API עסקי צריך לעבור דרך `requireAuth`.
-- אם מוסיפים קשר בין ישויות, עדיף לעשות זאת בסכמה ולא רק בצד client.
-- לא להוסיף cache אגרסיבי לקבצי frontend עד שיש versioning מסודר.
+- כל טקסט UI ב־`src/frontend/i18n/he.js`. RTL ועברית כברירת מחדל. Vanilla JS, בלי Bootstrap/jQuery.
+- תבנית Repository/Service/Controller ב־backend; `user_id` בכל טבלה עסקית חדשה; `requireAuth` על כל API.
+- **תבנית "סטטוסים/דחיפויות דינמיים"**: אם מוסיפים עוד enum שצריך להיות מותאם-משתמש (למשל שלבי עסקה של לקוחות), להעתיק במדויק את הדפוס של `statusRepository`/`priorityRepository` + `catalogService` + section ב-Settings.
+- **תבנית "Optimistic UI"**: לעדכן `state`/DOM מיד, לשלוח ל-API ברקע, rollback + `t.messages.networkError` בכישלון. ראו `quickUpdateTask`, `bindQuickAdd`, `removeTask`/`completeTaskWithUndo`.
+- **תבנית "העדפה חדשה"**: להוסיף שדה ל-`defaultPreferences()`, לקרוא/לכתוב דרך `state.prefs.<key>` + `persistPreferences()` (debounced PUT + localStorage cache). לא לשמור ישירות ב-localStorage בלבד.
+- `requestAnimationFrame` נמנע בכוונה בקוד היישום (למשל `startEditingCell` עובר עם `setTimeout(fn, 0)`) — סביבות מסוימות (טאב ברקע, headless testing) לא מריצות rAF באופן אמין.
 
-## דברים שחשוב לזכור מהשיחות הקודמות
+## דברים שחשוב לזכור
 
-- המשתמש רוצה עברית מלאה ועיצוב נקי ובהיר.
-- המערכת מיועדת כרגע למשתמשים פרטיים/לקוחות בודדים, אבל עם אפשרות עתידית להרחבה.
-- הוחלט שזו תהיה Web/PWA עם DB מרכזי והתחברות פשוטה, כי יש שימוש גם בנייד וגם במחשב.
-- קטגוריה היא הראשית; תת קטגוריה היא מה שנקרא בקוד `projects`.
-- לקוחות כרגע נפרדים ממשימות; בהמשך כנראה נחבר ביניהם.
-- המשתמש מעדיף פיתוח פרקטי ומהיר, אבל עם מבנה שמאפשר הרחבה.
+- 2 משתמשים בלבד כרגע — החלטות מוצר ממוקדות בנוחות/מראה/גמישות, לא בסקייל (ראו `IMPROVEMENT_PLAN.md` לנספח "לא רלוונטי כרגע" עם דברים לדחות לעתיד: better-sqlite3, pagination, אבטחה מוגברת, Service Worker אמיתי).
+- קטגוריה היא הראשית; תת קטגוריה = `projects` בקוד.
+- לקוחות כרגע נפרדים ממשימות.
 
 ## פיצ׳רים עתידיים מתוכננים/רעיוניים
 
-- חיבור לקוחות למשימות (`customer_id` ב־tasks).
-- Pipeline לקוחות מתקדם יותר.
-- שלבי עסקה דינמיים לכל משתמש.
-- דשבורד לקוחות.
-- ייבוא/ייצוא Excel.
-- התראות.
-- תצוגת לוח שנה.
-- משימות חוזרות.
-- AI Assistant.
-- WhatsApp Integration.
-- Gmail Integration.
-- Multi-user מתקדם יותר.
-- Cloud synchronization אמיתי.
-- הרשאות/roles אם יהיו כמה משתמשים באותו ארגון.
+חיבור לקוחות למשימות, Pipeline לקוחות מתקדם, שלבי עסקה דינמיים, דשבורד לקוחות, ייבוא/ייצוא Excel, התראות, לוח שנה, משימות חוזרות, AI Assistant, WhatsApp/Gmail Integration, multi-user מתקדם, cloud sync אמיתי, הרשאות/roles.
 
 ## מצב Git / הערות עבודה
 
@@ -540,17 +269,7 @@ git diff --stat
 npm run test
 ```
 
-במהלך העבודה היו לפעמים קבצים לא קשורים שהיו dirty, למשל:
-
-- `package.json`
-- `src/frontend/assets/icon.svg`
-- `src/main/main.js`
-
-לא להכניס קבצים כאלה ל־commit אם הם לא קשורים למשימה הנוכחית.
-
 ## Prompt מומלץ לשיחה חדשה
-
-אפשר לפתוח שיחה חדשה כך:
 
 ```text
 אני עובד על פרויקט TaskFlow. קרא את PROJECT_HANDOFF.md המצורף ותמשיך משם.

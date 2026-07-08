@@ -23,6 +23,12 @@ function createCatalogController(catalogService) {
       create: (req, res) => res.status(201).json(catalogService.createContact(req.user.id, req.body)),
       update: (req, res) => res.json(catalogService.updateContact(req.user.id, req.params.id, req.body)),
       delete: (req, res) => res.status(204).json(catalogService.deleteContact(req.user.id, req.params.id))
+    },
+    statuses: {
+      list: (req, res) => res.json(catalogService.listStatuses(req.user.id)),
+      create: (req, res) => res.status(201).json(catalogService.createStatus(req.user.id, req.body)),
+      update: (req, res) => res.json(catalogService.updateStatus(req.user.id, req.params.id, req.body)),
+      delete: (req, res) => res.status(204).json(catalogService.deleteStatus(req.user.id, req.params.id))
     }
   };
 }

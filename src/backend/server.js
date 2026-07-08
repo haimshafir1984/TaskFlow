@@ -8,11 +8,14 @@ const ContactRepository = require('./repositories/contactRepository');
 const CustomerRepository = require('./repositories/customerRepository');
 const CategoryRepository = require('./repositories/categoryRepository');
 const PriorityRepository = require('./repositories/priorityRepository');
+const StatusRepository = require('./repositories/statusRepository');
+const PreferencesRepository = require('./repositories/preferencesRepository');
 const TaskService = require('./services/taskService');
 const CustomerService = require('./services/customerService');
 const CatalogService = require('./services/catalogService');
 const SettingsService = require('./services/settingsService');
 const AuthService = require('./services/authService');
+const PreferencesService = require('./services/preferencesService');
 
 async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const { db, dbPath } = await initDatabase(dataDir);
@@ -40,14 +43,17 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const customerRepository = new CustomerRepository(db);
   const categoryRepository = new CategoryRepository(db);
   const priorityRepository = new PriorityRepository(db);
+  const statusRepository = new StatusRepository(db);
+  const preferencesRepository = new PreferencesRepository(db);
   const settingsService = new SettingsService(db, dbPath);
-  const catalogService = new CatalogService(projectRepository, contactRepository, categoryRepository, priorityRepository);
+  const catalogService = new CatalogService(projectRepository, contactRepository, categoryRepository, priorityRepository, statusRepository);
   const services = {
     authService: new AuthService(db, catalogService),
-    taskService: new TaskService(taskRepository),
+    taskService: new TaskService(taskRepository, statusRepository),
     customerService: new CustomerService(customerRepository),
     catalogService,
-    settingsService
+    settingsService,
+    preferencesService: new PreferencesService(preferencesRepository)
   };
 
   app.get('/health', (req, res) => res.json({ ok: true }));

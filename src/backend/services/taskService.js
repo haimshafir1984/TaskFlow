@@ -1,8 +1,9 @@
 const { validateTask } = require('../validators/taskValidator');
 
 class TaskService {
-  constructor(taskRepository) {
+  constructor(taskRepository, statusRepository) {
     this.tasks = taskRepository;
+    this.statuses = statusRepository;
   }
 
   list(userId, filters) {
@@ -10,11 +11,11 @@ class TaskService {
   }
 
   create(userId, payload) {
-    return this.tasks.create({ ...this.normalize(payload), user_id: Number(userId) });
+    return this.tasks.create({ ...this.normalize(userId, payload), user_id: Number(userId) });
   }
 
   update(userId, id, payload) {
-    return this.tasks.update(userId, id, this.normalize(payload));
+    return this.tasks.update(userId, id, this.normalize(userId, payload));
   }
 
   delete(userId, id) {
@@ -33,15 +34,19 @@ class TaskService {
     return this.tasks.dashboard(userId);
   }
 
-  normalize(payload) {
-    const validation = validateTask(payload);
+  normalize(userId, payload) {
+    const statusRows = this.statuses.list(userId);
+    const validation = validateTask(payload, statusRows.map((row) => row.key));
     if (!validation.valid) {
       const error = new Error('Validation failed');
       error.status = 422;
       error.details = validation.errors;
       throw error;
     }
-    const status = payload.status || 'open';
+    const defaultStatus = statusRows.find((row) => !row.is_done)?.key || statusRows[0]?.key || 'open';
+    const status = payload.status || defaultStatus;
+    const statusMeta = statusRows.find((row) => row.key === status);
+    const isDone = statusMeta ? Boolean(statusMeta.is_done) : status === 'completed';
     return {
       name: String(payload.name).trim(),
       description: payload.description || '',
@@ -53,7 +58,7 @@ class TaskService {
       created_at: payload.created_at || new Date().toISOString(),
       due_date: payload.due_date || null,
       notes: payload.notes || '',
-      completed_at: status === 'completed' ? payload.completed_at || new Date().toISOString() : null,
+      completed_at: isDone ? (payload.completed_at || new Date().toISOString()) : null,
       tags: Array.isArray(payload.tags) ? payload.tags : String(payload.tags || '').split(',')
     };
   }
