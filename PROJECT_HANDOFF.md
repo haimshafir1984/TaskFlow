@@ -173,6 +173,8 @@ fontSize, homeView, sidebarOrder, sidebarHidden
 
 ללא שינוי מבני מהותי (ראו גרסה קודמת של מסמך זה ב-git history לפירוט מלא של שדות אם צריך). תזכורת: קטגוריה = ראשית, `projects` = תת קטגוריה בקוד.
 
+**באג היסטורי שתוקן (2026-07-19):** ל-`categories` היה `UNIQUE` גלובלי על `name` בלבד (embedded בהגדרת העמודה, משריד מלפני תמיכה ב-multi-user) — בניגוד ל-`projects` שכבר קיבל תיקון מקביל (`migrateProjectUniqueness`) בעבר. זה גרם לכך שמשתמש שני (ואילך) לא הצליח ליצור קטגוריה בשם שכבר קיים אצל משתמש אחר, וגם ל-seeding השקט (`INSERT OR IGNORE`) בהרשמה לדלג על כל הקטגוריות ברירת המחדל שלו בלי שגיאה גלויה. תוקן ב-`db.js` דרך `migrateCategoryUniqueness()` (מזהה ומסירה גם index בודד וגם UNIQUE מוטמע בטבלה עצמה, ומבצעת table rebuild בעת הצורך) ו-`backfillMissingCategoriesForExistingUsers()` (משלים קטגוריות ברירת מחדל למשתמש קיים עם 0 קטגוריות). יש בדיקת רגרסיה קבועה ב-`js/tests.js` לתרחיש הזה — אם משהו ישבור את זה שוב, הבדיקות ייכשלו.
+
 ## API קיים
 
 כל routes חוץ מ־auth דורשים `Authorization: Bearer <token>`.

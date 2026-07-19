@@ -122,6 +122,7 @@ function migrateExistingDatabase() {
   }
 
   migrateProjectUniqueness();
+  migrateCategoryUniqueness();
   db.exec('CREATE INDEX IF NOT EXISTS idx_projects_category_id ON projects(category_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_tasks_category_id ON tasks(category_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id)');
@@ -135,6 +136,7 @@ function migrateExistingDatabase() {
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_priorities_user_key ON priorities(user_id, key)');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_statuses_user_key ON statuses(user_id, key)');
   seedStatusesForExistingUsers();
+  backfillMissingCategoriesForExistingUsers();
 }
 
 function seedStatusesForExistingUsers() {
@@ -150,6 +152,65 @@ function seedStatusesForExistingUsers() {
     insert.run(user.id, 'in_progress', 'בתהליך', '#b45309', 2, 0);
     insert.run(user.id, 'completed', 'הושלמה', '#047857', 3, 1);
     insert.run(user.id, 'blocked', 'חסומה', '#b91c1c', 4, 0);
+  });
+}
+
+function migrateCategoryUniqueness() {
+  // Older installations may have a leftover single-column UNIQUE index on
+  // categories(name), predating multi-user support and superseded by the
+  // (user_id, name) composite index above. It silently blocks every user but
+  // the first from ever creating a category whose name the first user already used.
+  db.prepare('PRAGMA index_list(categories)').all().forEach((index) => {
+    // Auto-generated indexes for an inline column constraint (e.g. sqlite_autoindex_*)
+    // can't be dropped directly - only Case 2 below (table rebuild) can remove those.
+    if (!index.unique || index.name.startsWith('sqlite_autoindex_')) return;
+    const columns = db.prepare(`PRAGMA index_info("${index.name}")`).all();
+    if (columns.length === 1 && columns[0].name === 'name') {
+      db.exec(`DROP INDEX IF EXISTS "${index.name}"`);
+    }
+  });
+
+  // Older installations may also have that same UNIQUE constraint embedded
+  // directly in the table definition itself (from before user_id existed),
+  // which a DROP INDEX can't remove — only a table rebuild can.
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'categories'").get();
+  if (!row?.sql || !/name\s+TEXT\s+NOT\s+NULL\s+UNIQUE/i.test(row.sql)) return;
+
+  db.exec(`
+    PRAGMA foreign_keys = OFF;
+    CREATE TABLE categories_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#2f80ed',
+      description TEXT DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT INTO categories_new (id, user_id, name, color, description, sort_order, created_at, updated_at)
+    SELECT id, user_id, name, color, description, sort_order, created_at, updated_at FROM categories;
+    DROP TABLE categories;
+    ALTER TABLE categories_new RENAME TO categories;
+    PRAGMA foreign_keys = ON;
+  `);
+}
+
+function backfillMissingCategoriesForExistingUsers() {
+  // A user whose registration ran while the stale global UNIQUE constraint
+  // above was still active would have had every default category silently
+  // dropped by INSERT OR IGNORE (the name was already taken by an earlier
+  // user). Give any user with zero categories the same defaults now.
+  const users = db.prepare('SELECT id FROM users').all();
+  const countForUser = db.prepare('SELECT COUNT(*) AS count FROM categories WHERE user_id = ?');
+  const insert = db.prepare('INSERT OR IGNORE INTO categories (user_id, name, color, sort_order) VALUES (?, ?, ?, ?)');
+  users.forEach((user) => {
+    if ((countForUser.get(user.id)?.count || 0) > 0) return;
+    insert.run(user.id, 'משימות אישיות', '#2f80ed', 1);
+    insert.run(user.id, 'סידורים', '#12a594', 2);
+    insert.run(user.id, 'משפחה', '#ef5350', 3);
+    insert.run(user.id, 'פיתוח עסקי', '#8b5cf6', 4);
+    insert.run(user.id, 'קניות', '#f59e0b', 5);
   });
 }
 

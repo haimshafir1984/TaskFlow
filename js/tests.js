@@ -74,6 +74,13 @@ async function run() {
     const allTasks = await api(port, first.body.token, '/tasks');
     assert.strictEqual(allTasks.body.some((task) => task.id === quickTask.body.id), true);
 
+    const categoryA = await api(port, first.body.token, '/categories', { method: 'POST', body: { name: 'Shared Category Name', color: '#111111' } });
+    assert.strictEqual(categoryA.status, 201);
+    const categoryB = await api(port, second.body.token, '/categories', { method: 'POST', body: { name: 'Shared Category Name', color: '#222222' } });
+    assert.strictEqual(categoryB.status, 201, 'two different users must both be able to create a category with the same name');
+    const duplicateCategory = await api(port, first.body.token, '/categories', { method: 'POST', body: { name: 'Shared Category Name', color: '#333333' } });
+    assert.strictEqual(duplicateCategory.status, 500, 'the same user creating the same category name twice must still be rejected');
+
     await new Promise((resolve) => server.close(resolve));
     const restarted = await startServer({ dataDir, host: '127.0.0.1' });
     try {
