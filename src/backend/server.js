@@ -23,6 +23,13 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const frontendDir = path.join(__dirname, '..', 'frontend');
   app.use(express.json({ limit: '2mb' }));
   app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      console.log(`${new Date().toISOString()} ${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`);
+    });
+    next();
+  });
+  app.use((req, res, next) => {
     if (req.path === '/' || req.path.endsWith('.html') || req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.webmanifest') || req.path.endsWith('service-worker.js')) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.setHeader('Pragma', 'no-cache');
@@ -59,6 +66,7 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   app.get('/health', (req, res) => res.json({ ok: true }));
   app.use('/api', createRoutes(services));
   app.use('/api', (error, req, res, next) => {
+    console.error(error);
     const status = error.status || 500;
     res.status(status).json({
       message: error.message || 'Server error',

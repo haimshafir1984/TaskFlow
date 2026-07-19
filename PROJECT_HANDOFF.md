@@ -230,7 +230,11 @@ POST /api/settings/import-csv
 
 ## Cache / Service Worker
 
-ללא שינוי: `index.html` לא רושם Service Worker חדש, מנקה קיימים; `server.js` שולח `no-store` לקבצי אפליקציה. `manifest.webmanifest` כולל `shortcuts` (לחיצה ארוכה על האייקון בנייד → `/?quick-add=1`, שהאפליקציה מזהה ופותחת הוספה מהירה ישירות).
+`index.html` לא רושם Service Worker חדש, מנקה קיימים; `server.js` שולח `no-store` לקבצי אפליקציה. `manifest.webmanifest` כולל `shortcuts` (לחיצה ארוכה על האייקון בנייד → `/?quick-add=1`).
+
+**`service-worker.js` הוא כעת "kill switch" (עודכן 2026-07-19):** מכשיר עם registration ישן (גם כזה שתפס בקשות מ-cache) יתקין בעדכון התקופתי את הגרסה הזו, שבשלב `activate` מוחקת את כל ה-caches, מבטלת את הרישום של עצמה, ומכריחה `client.navigate()` על כל טאב פתוח שהיא שולטת בו — כך המכשיר מתכנס בחזרה למצב "בלי Service Worker בכלל", בלי פעולה ידנית. **תופעת לוואי מכוונת:** בפעם שבה עדכון זה מגיע לכל משתמש, טאב TaskFlow פתוח שלו ירענן את עצמו אוטומטית (בלי אזהרה) — זה חד-פעמי, לא יקרה שוב אחרי שהמכשיר "נקי". לא למחוק את הקובץ הזה בעתיד; הוא משמש כרשת ביטחון קבועה למכשירים שעדיין תקועים.
+
+**לוגים:** `server.js` כותב שורת לוג לכל בקשה (`timestamp METHOD path status duration`), וה-error handler ב-`routes/index.js` (וגם זה הכפול/הלא-מגיע ב-`server.js`, שנשאר כרשת ביטחון) כותבים `console.error(error)` — קודם לכן לא היה שום לוג לבקשות/שגיאות מעבר לשלוש שורות ה-startup החד-פעמיות, מה שהפך את Render Logs לחסר תועלת לדיבאג.
 
 ## Electron/Desktop
 

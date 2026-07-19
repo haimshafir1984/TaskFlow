@@ -73,6 +73,7 @@ function createRoutes(services) {
   router.post('/settings/import-csv', settings.importCsv);
 
   router.use((error, req, res, next) => {
+    console.error(error);
     res.status(error.status || 500).json({ message: error.message, code: error.code || 'API_ERROR', details: error.details || null });
   });
 
