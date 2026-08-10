@@ -50,7 +50,7 @@ class AutomationService {
     if (!clientId || !redirectUri) { const error = new Error('Google OAuth is not configured on the server'); error.status = 503; error.code = 'GOOGLE_NOT_CONFIGURED'; throw error; }
     const state = crypto.randomBytes(24).toString('hex');
     this.integrations.db.prepare('INSERT INTO oauth_states (state, user_id, provider, expires_at) VALUES (?, ?, ?, datetime(\'now\', \'+10 minutes\'))').run(state, Number(userId), 'google_sheets');
-    const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: 'code', access_type: 'offline', prompt: 'consent', scope: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets', state });
+    const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: 'code', access_type: 'offline', prompt: 'consent', scope: 'https://www.googleapis.com/auth/drive.metadata.readonly https://www.googleapis.com/auth/spreadsheets', state });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
