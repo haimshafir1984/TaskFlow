@@ -74,6 +74,45 @@ async function run() {
     const allTasks = await api(port, first.body.token, '/tasks');
     assert.strictEqual(allTasks.body.some((task) => task.id === quickTask.body.id), true);
 
+    const integration = await api(port, first.body.token, '/integrations', {
+      method: 'POST',
+      body: { provider: 'make', name: 'Make test', config: { webhook_url: 'http://invalid.localhost.test/hook' } }
+    });
+    assert.strictEqual(integration.status, 201);
+    assert.strictEqual(integration.body.provider, 'make');
+    assert.strictEqual(integration.body.credentials, undefined, 'credentials must not be returned by the list/create response');
+
+    const rule = await api(port, first.body.token, '/automation-rules', {
+      method: 'POST',
+      body: { name: 'Notify on task creation', trigger_type: 'task.created', integration_id: integration.body.id }
+    });
+    assert.strictEqual(rule.status, 201);
+    assert.strictEqual(rule.body.trigger_type, 'task.created');
+
+    const automatedTask = await api(port, first.body.token, '/tasks', { method: 'POST', body: { name: 'automation task' } });
+    assert.strictEqual(automatedTask.status, 201);
+    const logs = await api(port, first.body.token, '/automation-logs');
+    assert.strictEqual(logs.status, 200);
+    assert.strictEqual(logs.body.some((log) => log.rule_id === rule.body.id && log.status === 'failed'), true);
+
+    const incomingKey = await api(port, first.body.token, '/integrations/incoming-key', { method: 'POST' });
+    assert.strictEqual(incomingKey.status, 201);
+    assert.ok(incomingKey.body.token);
+    const incomingTask = await fetch(`http://127.0.0.1:${port}/api/integrations/incoming/${incomingKey.body.token}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Task from Power Automate', priority: 'high' })
+    });
+    assert.strictEqual(incomingTask.status, 201);
+    const incomingTaskBody = await incomingTask.json();
+    assert.strictEqual(incomingTaskBody.name, 'Task from Power Automate');
+    const wrongIncoming = await fetch(`http://127.0.0.1:${port}/api/integrations/incoming/wrong-token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Should fail' })
+    });
+    assert.strictEqual(wrongIncoming.status, 401);
+
+    const secondIntegrations = await api(port, second.body.token, '/integrations');
+    assert.strictEqual(secondIntegrations.status, 200);
+    assert.strictEqual(secondIntegrations.body.length, 0);
+
     const categoryA = await api(port, first.body.token, '/categories', { method: 'POST', body: { name: 'Shared Category Name', color: '#111111' } });
     assert.strictEqual(categoryA.status, 201);
     const categoryB = await api(port, second.body.token, '/categories', { method: 'POST', body: { name: 'Shared Category Name', color: '#222222' } });

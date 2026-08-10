@@ -14,11 +14,11 @@ class AutomationService {
 
   createIntegration(userId, payload) {
     const normalized = this.normalizeIntegration(userId, payload);
-    return this.integrations.create(normalized);
+    return publicIntegration(this.integrations.create(normalized));
   }
 
   updateIntegration(userId, id, payload) {
-    return this.integrations.update(userId, id, this.normalizeIntegration(userId, payload));
+    return publicIntegration(this.integrations.update(userId, id, this.normalizeIntegration(userId, payload)));
   }
 
   deleteIntegration(userId, id) { return this.integrations.deleteForUser(userId, id); }
@@ -113,6 +113,12 @@ class AutomationService {
 
 function matchesConditions(conditions, payload) {
   return Object.entries(conditions || {}).every(([key, value]) => String(payload[key] ?? '') === String(value));
+}
+
+function publicIntegration(integration) {
+  if (!integration) return integration;
+  const { credentials, ...safe } = integration;
+  return safe;
 }
 
 module.exports = AutomationService;

@@ -79,4 +79,14 @@ window.Api = {
   restore: (source) => Api.request('/settings/restore', { method: 'POST', body: { source } }),
   exportCsv: (destination) => Api.request('/settings/export-csv', { method: 'POST', body: { destination } }),
   importCsv: (source) => Api.request('/settings/import-csv', { method: 'POST', body: { source } })
+  ,integrations: () => Api.request('/integrations')
+  ,createIntegration: (body) => Api.request('/integrations', { method: 'POST', body })
+  ,updateIntegration: (id, body) => Api.request(`/integrations/${id}`, { method: 'PUT', body })
+  ,deleteIntegration: (id) => Api.request(`/integrations/${id}`, { method: 'DELETE' })
+  ,createIncomingKey: () => Api.request('/integrations/incoming-key', { method: 'POST' })
+  ,automationRules: () => Api.request('/automation-rules')
+  ,createAutomationRule: (body) => Api.request('/automation-rules', { method: 'POST', body })
+  ,updateAutomationRule: (id, body) => Api.request(`/automation-rules/${id}`, { method: 'PUT', body })
+  ,deleteAutomationRule: (id) => Api.request(`/automation-rules/${id}`, { method: 'DELETE' })
+  ,automationLogs: () => Api.request('/automation-logs')
 };

@@ -19,6 +19,9 @@ const state = {
   statuses: [],
   contacts: [],
   customers: [],
+  integrations: [],
+  automationRules: [],
+  automationLogs: [],
   settings: {},
   prefs: defaultPreferences(),
   filters: { status: 'active', sort_by: 'created_at', sort_dir: 'desc' },
@@ -132,7 +135,7 @@ function applyPreferenceStyles() {
 }
 
 async function loadAll() {
-  const [tasks, projects, categories, priorities, statuses, contacts, customers, settings] = await Promise.all([
+  const [tasks, projects, categories, priorities, statuses, contacts, customers, settings, integrations, automationRules, automationLogs] = await Promise.all([
     Api.tasks(buildTaskQuery()),
     Api.projects(),
     Api.categories(),
@@ -140,9 +143,12 @@ async function loadAll() {
     Api.statuses(),
     Api.contacts(),
     Api.customers(),
-    Api.settings()
+    Api.settings(),
+    Api.integrations(),
+    Api.automationRules(),
+    Api.automationLogs()
   ]);
-  Object.assign(state, { tasks, projects, categories, priorities, statuses, contacts, customers, settings });
+  Object.assign(state, { tasks, projects, categories, priorities, statuses, contacts, customers, settings, integrations, automationRules, automationLogs });
   document.body.classList.toggle('dark', settings.theme === 'dark');
 }
 
@@ -1445,6 +1451,27 @@ function renderSettings() {
     <div class="panel settings-section">
       <div class="section-head"><h2>${t.titles.statuses}</h2><button class="primary" id="add-status">${UI.icon('plus')}${t.titles.addStatus}</button></div>
       <div class="cards-list compact-list">${state.statuses.map(statusCard).join('') || t.common.empty}</div>
+    </div>
+    <div class="panel settings-section integrations-section">
+      <div class="section-head"><div><h2>${t.settings.integrationsTitle}</h2><p class="settings-hint">${t.settings.integrationsSubtitle}</p></div><button class="primary" id="create-incoming-key">${UI.icon('plus')}${t.settings.createIncomingKey}</button></div>
+      <form id="integration-form" class="automation-form">
+        <input name="name" placeholder="${t.settings.integrationName}" required />
+        <select name="provider"><option value="make">Make</option><option value="power_automate">Power Automate</option><option value="google_sheets">Google Sheets</option><option value="webhook">Webhook</option></select>
+        <input name="webhook_url" type="url" placeholder="${t.settings.webhookUrl}" required />
+        <button class="primary" type="submit">${UI.icon('save')}${t.settings.addIntegration}</button>
+      </form>
+      <div class="automation-list">${state.integrations.filter((item) => item.auth_type !== 'incoming_webhook').map(integrationCard).join('') || `<p class="settings-hint">${t.settings.noIntegrations}</p>`}</div>
+    </div>
+    <div class="panel settings-section integrations-section">
+      <div class="section-head"><div><h2>${t.settings.automationsTitle}</h2><p class="settings-hint">${t.settings.automationsSubtitle}</p></div></div>
+      <form id="automation-form" class="automation-form">
+        <input name="name" placeholder="${t.settings.automationName}" required />
+        <select name="trigger_type"><option value="task.created">${t.settings.triggerTaskCreated}</option><option value="task.updated">${t.settings.triggerTaskUpdated}</option><option value="task.completed">${t.settings.triggerTaskCompleted}</option></select>
+        <select name="integration_id"><option value="">${t.settings.chooseIntegration}</option>${state.integrations.filter((item) => item.auth_type !== 'incoming_webhook').map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}</select>
+        <button class="primary" type="submit">${UI.icon('save')}${t.settings.addAutomation}</button>
+      </form>
+      <div class="automation-list">${state.automationRules.map(automationCard).join('') || `<p class="settings-hint">${t.settings.noAutomations}</p>`}</div>
+      <div class="automation-logs"><h3>${t.settings.automationLogs}</h3>${state.automationLogs.slice(0, 10).map(automationLogRow).join('') || `<p class="settings-hint">${t.settings.noLogs}</p>`}</div>
     </div>`;
   document.querySelectorAll('[data-theme]').forEach((button) => button.onclick = async () => {
     await Api.setSetting('theme', button.dataset.theme);
@@ -1476,6 +1503,44 @@ function renderSettings() {
   document.getElementById('add-status').onclick = () => openStatusModal();
   document.querySelectorAll('[data-edit-status]').forEach((button) => button.onclick = () => openStatusModal(state.statuses.find((item) => item.id == button.dataset.editStatus)));
   document.querySelectorAll('[data-delete-status]').forEach((button) => button.onclick = () => removeStatus(button.dataset.deleteStatus));
+  document.getElementById('create-incoming-key').onclick = async () => {
+    const result = await Api.createIncomingKey();
+    const url = `${window.location.origin}/api/integrations/incoming/${result.token}`;
+    window.prompt(t.settings.incomingKeyPrompt, url);
+    await loadAll();
+    renderSettings();
+  };
+  document.getElementById('integration-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.target).entries());
+    await Api.createIntegration({ provider: data.provider, name: data.name, config: { webhook_url: data.webhook_url } });
+    await loadAll();
+    renderSettings();
+    UI.toast(t.messages.saved);
+  };
+  document.getElementById('automation-form').onsubmit = async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.target).entries());
+    if (!data.integration_id) return UI.toast(t.settings.chooseIntegration);
+    await Api.createAutomationRule({ name: data.name, trigger_type: data.trigger_type, integration_id: Number(data.integration_id) });
+    await loadAll();
+    renderSettings();
+    UI.toast(t.messages.saved);
+  };
+  document.querySelectorAll('[data-delete-integration]').forEach((button) => button.onclick = async () => { await Api.deleteIntegration(button.dataset.deleteIntegration); await loadAll(); renderSettings(); });
+  document.querySelectorAll('[data-delete-automation]').forEach((button) => button.onclick = async () => { await Api.deleteAutomationRule(button.dataset.deleteAutomation); await loadAll(); renderSettings(); });
+}
+
+function integrationCard(item) {
+  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.provider)} · ${item.is_active ? t.settings.active : t.settings.inactive}</span></div><button class="danger ghost" data-delete-integration="${item.id}">${UI.icon('trash')}</button></div>`;
+}
+
+function automationCard(item) {
+  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.trigger_type)} → ${escapeHtml(item.integration_name || t.settings.noIntegration)}</span></div><button class="danger ghost" data-delete-automation="${item.id}">${UI.icon('trash')}</button></div>`;
+}
+
+function automationLogRow(item) {
+  return `<div class="automation-log-row"><span>${escapeHtml(item.event_type)}</span><span class="automation-status ${item.status}">${escapeHtml(item.status)}</span><small>${escapeHtml(item.integration_name || '')}</small></div>`;
 }
 
 function sidebarOption(key, index, total) {
