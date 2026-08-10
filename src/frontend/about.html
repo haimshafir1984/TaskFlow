@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2f80ed" />
+    <link rel="icon" href="./assets/icon.svg" />
+    <title>TaskFlow | ניהול משימות ולקוחות</title>
+    <style>
+      :root { font-family: Arial, sans-serif; background: #f4f7fb; color: #13233f; }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 32px 18px; line-height: 1.7; }
+      main { width: min(860px, 100%); margin: 0 auto; padding: 38px; border: 1px solid #dce5f1; border-radius: 14px; background: #fff; box-shadow: 0 16px 40px rgba(31, 55, 88, .08); }
+      header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+      header img { width: 58px; height: 58px; }
+      h1 { margin: 0; font-size: 2.15rem; }
+      h2 { margin: 28px 0 8px; font-size: 1.3rem; }
+      p { margin: 8px 0; }
+      .lead { color: #405676; font-size: 1.1rem; }
+      .features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 22px 0; padding: 0; list-style: none; }
+      .features li { padding: 14px 16px; border: 1px solid #dce5f1; border-radius: 8px; background: #f8fbff; }
+      nav { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+      nav a { padding: 10px 16px; border-radius: 8px; color: #fff; background: #2f80ed; text-decoration: none; font-weight: 700; }
+      nav a.secondary { color: #2f80ed; background: #eaf2ff; }
+      footer { margin-top: 28px; color: #5e718e; font-size: .9rem; }
+      @media (max-width: 600px) { body { padding: 14px 10px; } main { padding: 24px 18px; } h1 { font-size: 1.75rem; } .features { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="./assets/icon.svg" alt="TaskFlow" />
+        <div><h1>TaskFlow</h1><p class="lead">מערכת פשוטה לניהול משימות, לקוחות ואוטומציות</p></div>
+      </header>
+
+      <p>TaskFlow עוזרת למשתמשים פרטיים ולעסקים קטנים לרכז במקום אחד את המשימות, הקטגוריות, הפרויקטים, אנשי הקשר והלקוחות שלהם.</p>
+
+      <h2>מה אפשר לעשות ב־TaskFlow?</h2>
+      <ul class="features">
+        <li>ניהול משימות לפי קטגוריות, פרויקטים, דחיפות ותאריכי יעד</li>
+        <li>ניהול לקוחות, אנשי קשר ופרטי עסקאות</li>
+        <li>דשבורד עם נתונים על מצב המשימות והפעילות</li>
+        <li>חיבור ל־Google, Make ו־Power Automate באמצעות אוטומציות</li>
+      </ul>
+
+      <h2>איך נשמר המידע?</h2>
+      <p>המידע נשמר בחשבון הפרטי של המשתמש במערכת. חיבור לשירותים חיצוניים מתבצע רק לאחר שהמשתמש מאשר ומגדיר אותו בעצמו.</p>
+
+      <nav>
+        <a href="/">כניסה ל־TaskFlow</a>
+        <a class="secondary" href="/privacy-policy">מדיניות פרטיות</a>
+      </nav>
+
+      <footer>TaskFlow · לשאלות ותמיכה: haim.shafir.1@gmail.com</footer>
+    </main>
+  </body>
+</html>

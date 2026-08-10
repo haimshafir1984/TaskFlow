@@ -75,6 +75,10 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.sendFile(path.join(frontendDir, 'privacy-policy.html'));
   });
+  app.get('/about', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.sendFile(path.join(frontendDir, 'about.html'));
+  });
   app.use('/api', createRoutes(services));
   app.use('/api', (error, req, res, next) => {
     console.error(error);
