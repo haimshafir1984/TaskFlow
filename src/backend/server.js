@@ -71,6 +71,10 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   };
 
   app.get('/health', (req, res) => res.json({ ok: true }));
+  app.get('/privacy-policy', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.sendFile(path.join(frontendDir, 'privacy-policy.html'));
+  });
   app.use('/api', createRoutes(services));
   app.use('/api', (error, req, res, next) => {
     console.error(error);
