@@ -29,6 +29,9 @@ function createRoutes(services) {
     const task = services.taskService.create(received.userId, received.task);
     res.status(201).json(task);
   });
+  router.get('/integrations/google/callback', async (req, res, next) => {
+    try { await services.automationService.googleCallback(req.query.code, req.query.state); res.redirect('/?google=connected'); } catch (error) { next(error); }
+  });
 
   router.use(requireAuth(services.authService));
 
@@ -78,6 +81,8 @@ function createRoutes(services) {
   router.put('/integrations/:id', automation.integrations.update);
   router.delete('/integrations/:id', automation.integrations.delete);
   router.post('/integrations/incoming-key', automation.integrations.incomingKey);
+  router.get('/integrations/google/authorize', automation.integrations.googleAuthorize);
+  router.get('/integrations/google/spreadsheets', automation.integrations.googleSpreadsheets);
   router.get('/automation-rules', automation.rules.list);
   router.post('/automation-rules', automation.rules.create);
   router.put('/automation-rules/:id', automation.rules.update);

@@ -188,6 +188,14 @@ CREATE TABLE IF NOT EXISTS automation_logs (
   FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS oauth_states (
+  state TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  provider TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);

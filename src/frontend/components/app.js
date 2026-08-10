@@ -1454,9 +1454,10 @@ function renderSettings() {
     </div>
     <div class="panel settings-section integrations-section">
       <div class="section-head"><div><h2>${t.settings.integrationsTitle}</h2><p class="settings-hint">${t.settings.integrationsSubtitle}</p></div><button class="primary" id="create-incoming-key">${UI.icon('plus')}${t.settings.createIncomingKey}</button></div>
+      <div class="integration-provider-actions"><button class="ghost" id="connect-google" type="button">${t.settings.connectGoogle}</button></div>
       <form id="integration-form" class="automation-form">
         <input name="name" placeholder="${t.settings.integrationName}" required />
-        <select name="provider"><option value="make">Make</option><option value="power_automate">Power Automate</option><option value="google_sheets">Google Sheets</option><option value="webhook">Webhook</option></select>
+        <select name="provider"><option value="make">Make</option><option value="power_automate">Power Automate</option><option value="webhook">Webhook</option></select>
         <input name="webhook_url" type="url" placeholder="${t.settings.webhookUrl}" required />
         <button class="primary" type="submit">${UI.icon('save')}${t.settings.addIntegration}</button>
       </form>
@@ -1510,6 +1511,9 @@ function renderSettings() {
     await loadAll();
     renderSettings();
   };
+  document.getElementById('connect-google').onclick = async () => {
+    try { const result = await Api.googleAuthorize(); window.location.href = result.url; } catch (error) { UI.toast(error.message); }
+  };
   document.getElementById('integration-form').onsubmit = async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target).entries());
@@ -1528,11 +1532,27 @@ function renderSettings() {
     UI.toast(t.messages.saved);
   };
   document.querySelectorAll('[data-delete-integration]').forEach((button) => button.onclick = async () => { await Api.deleteIntegration(button.dataset.deleteIntegration); await loadAll(); renderSettings(); });
+  document.querySelectorAll('[data-config-google]').forEach((button) => button.onclick = async () => {
+    try {
+      const sheets = await Api.googleSpreadsheets();
+      if (!sheets.length) return UI.toast(t.settings.noGoogleSheets);
+      const selected = window.prompt(`${t.settings.chooseGoogleSheet}\n${sheets.map((sheet, index) => `${index + 1}. ${sheet.name}`).join('\n')}`, '1');
+      const index = Number(selected) - 1;
+      if (!Number.isInteger(index) || !sheets[index]) return;
+      const sheetName = window.prompt(t.settings.sheetTabName, 'Sheet1') || 'Sheet1';
+      const item = state.integrations.find((integration) => integration.id == button.dataset.configGoogle);
+      await Api.updateIntegration(item.id, { provider: 'google_sheets', name: item.name, auth_type: 'oauth2', config: { spreadsheet_id: sheets[index].id, sheet_name: sheetName } });
+      await loadAll();
+      renderSettings();
+      UI.toast(t.messages.saved);
+    } catch (error) { UI.toast(error.message); }
+  });
   document.querySelectorAll('[data-delete-automation]').forEach((button) => button.onclick = async () => { await Api.deleteAutomationRule(button.dataset.deleteAutomation); await loadAll(); renderSettings(); });
 }
 
 function integrationCard(item) {
-  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.provider)} · ${item.is_active ? t.settings.active : t.settings.inactive}</span></div><button class="danger ghost" data-delete-integration="${item.id}">${UI.icon('trash')}</button></div>`;
+  const configure = item.provider === 'google_sheets' ? `<button class="ghost" data-config-google="${item.id}">${t.settings.chooseGoogleSheet}</button>` : '';
+  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.provider)} · ${item.is_active ? t.settings.active : t.settings.inactive}</span></div><div class="automation-row-actions">${configure}<button class="danger ghost" data-delete-integration="${item.id}">${UI.icon('trash')}</button></div></div>`;
 }
 
 function automationCard(item) {

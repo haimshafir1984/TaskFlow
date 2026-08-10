@@ -113,6 +113,10 @@ async function run() {
     assert.strictEqual(secondIntegrations.status, 200);
     assert.strictEqual(secondIntegrations.body.length, 0);
 
+    const googleWithoutConfig = await api(port, first.body.token, '/integrations/google/authorize');
+    assert.strictEqual(googleWithoutConfig.status, 503);
+    assert.strictEqual(googleWithoutConfig.body.code, 'GOOGLE_NOT_CONFIGURED');
+
     const categoryA = await api(port, first.body.token, '/categories', { method: 'POST', body: { name: 'Shared Category Name', color: '#111111' } });
     assert.strictEqual(categoryA.status, 201);
     const categoryB = await api(port, second.body.token, '/categories', { method: 'POST', body: { name: 'Shared Category Name', color: '#222222' } });

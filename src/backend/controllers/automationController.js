@@ -5,7 +5,9 @@ function createAutomationController(service) {
       create: (req, res) => res.status(201).json(service.createIntegration(req.user.id, req.body)),
       update: (req, res) => res.json(service.updateIntegration(req.user.id, req.params.id, req.body)),
       delete: (req, res) => res.status(204).json(service.deleteIntegration(req.user.id, req.params.id)),
-      incomingKey: (req, res) => res.status(201).json(service.createIncomingKey(req.user.id))
+      incomingKey: (req, res) => res.status(201).json(service.createIncomingKey(req.user.id)),
+      googleAuthorize: (req, res) => res.json({ url: service.googleAuthorize(req.user.id) }),
+      googleSpreadsheets: async (req, res, next) => { try { res.json(await service.googleSpreadsheets(req.user.id)); } catch (error) { next(error); } }
     },
     rules: {
       list: (req, res) => res.json(service.listRules(req.user.id)),

@@ -211,6 +211,10 @@ window.I18N = {
     triggerTaskCreated: 'כאשר נוצרה משימה',
     triggerTaskUpdated: 'כאשר משימה עודכנה',
     triggerTaskCompleted: 'כאשר משימה הושלמה'
+    ,connectGoogle: 'חיבור חשבון Google',
+    chooseGoogleSheet: 'בחירת גיליון',
+    sheetTabName: 'שם לשונית בגיליון',
+    noGoogleSheets: 'לא נמצאו גיליונות Google זמינים'
   },
   messages: {
     taskSaved: 'המשימה נשמרה',

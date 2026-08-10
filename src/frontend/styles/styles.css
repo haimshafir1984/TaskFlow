@@ -1525,6 +1525,7 @@ label {
 }
 .automation-row strong { display: block; }
 .automation-row span { color: var(--muted); font-size: .85rem; }
+.automation-row-actions { display: flex; align-items: center; gap: 8px; }
 .automation-logs { margin-top: 20px; }
 .automation-logs h3 { margin: 0 0 10px; }
 .automation-log-row { justify-content: flex-start; font-size: .9rem; }

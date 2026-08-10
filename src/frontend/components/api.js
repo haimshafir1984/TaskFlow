@@ -89,4 +89,6 @@ window.Api = {
   ,updateAutomationRule: (id, body) => Api.request(`/automation-rules/${id}`, { method: 'PUT', body })
   ,deleteAutomationRule: (id) => Api.request(`/automation-rules/${id}`, { method: 'DELETE' })
   ,automationLogs: () => Api.request('/automation-logs')
+  ,googleAuthorize: () => Api.request('/integrations/google/authorize')
+  ,googleSpreadsheets: () => Api.request('/integrations/google/spreadsheets')
 };
