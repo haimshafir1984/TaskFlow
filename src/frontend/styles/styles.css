@@ -1505,6 +1505,34 @@ label {
   margin-top: 14px;
 }
 
+.integration-intro {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.integration-intro h2 { margin: 6px 0; font-size: 1.45rem; }
+.integration-intro p { margin: 0; color: var(--muted); }
+.eyebrow { color: var(--primary); font-size: .82rem; font-weight: 700; }
+.integration-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--muted); }
+.integration-flow span { padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--background); }
+.integration-flow b { color: var(--primary); }
+.integration-help { margin-bottom: 16px; }
+.integration-help-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.help-tab { padding: 9px 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); cursor: pointer; }
+.help-tab:hover { border-color: var(--primary); color: var(--primary); }
+.help-tab.active { border-color: var(--primary); color: #fff; background: var(--primary); }
+.help-panel { max-width: 900px; }
+.help-panel h3 { margin: 0 0 8px; }
+.help-panel p { color: var(--muted); line-height: 1.6; }
+.help-panel ol { display: grid; gap: 8px; margin: 12px 0; padding-inline-start: 22px; line-height: 1.55; }
+.help-tip { padding: 12px 14px; border-inline-start: 4px solid var(--primary); border-radius: 6px; color: var(--muted); background: var(--background); line-height: 1.55; }
+.integration-provider-actions { display: flex; justify-content: flex-start; margin-bottom: 12px; }
+
 .automation-form {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -5,7 +5,7 @@ const DEFAULT_TASK_COLUMNS = ['status', 'priority', 'name', 'category', 'project
 const SORT_FIELDS = ['priority', 'created_at', 'due_date', 'project', 'category'];
 const DASHBOARD_CARD_WIDGETS = ['open_tasks', 'completed_tasks', 'overdue_tasks', 'today_tasks'];
 const DASHBOARD_PANEL_WIDGETS = ['byPriority', 'byCategory', 'byProject', 'recent'];
-const NAV_KEYS = ['dashboard', 'tasks', 'customers', 'categories', 'projects', 'contacts', 'settings'];
+const NAV_KEYS = ['dashboard', 'tasks', 'customers', 'categories', 'projects', 'contacts', 'integrations', 'settings'];
 const WEEKDAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const UNDO_WINDOW_MS = 5000;
 const MOBILE_BREAKPOINT = '(max-width: 760px)';
@@ -255,7 +255,11 @@ function renderSidebarNav() {
 
 function sidebarOrderList() {
   const order = (state.prefs.sidebarOrder && state.prefs.sidebarOrder.length ? state.prefs.sidebarOrder : NAV_KEYS).filter((key) => NAV_KEYS.includes(key));
-  NAV_KEYS.forEach((key) => { if (!order.includes(key)) order.push(key); });
+  NAV_KEYS.forEach((key) => {
+    if (order.includes(key)) return;
+    if (key === 'integrations' && order.includes('settings')) order.splice(order.indexOf('settings'), 0, key);
+    else order.push(key);
+  });
   return order;
 }
 
@@ -287,6 +291,7 @@ function renderView() {
   if (state.view === 'projects') renderProjects();
   if (state.view === 'customers') renderCustomers();
   if (state.view === 'contacts') renderContacts();
+  if (state.view === 'integrations') renderIntegrations();
   if (state.view === 'settings') renderSettings();
 }
 
@@ -1451,28 +1456,6 @@ function renderSettings() {
     <div class="panel settings-section">
       <div class="section-head"><h2>${t.titles.statuses}</h2><button class="primary" id="add-status">${UI.icon('plus')}${t.titles.addStatus}</button></div>
       <div class="cards-list compact-list">${state.statuses.map(statusCard).join('') || t.common.empty}</div>
-    </div>
-    <div class="panel settings-section integrations-section">
-      <div class="section-head"><div><h2>${t.settings.integrationsTitle}</h2><p class="settings-hint">${t.settings.integrationsSubtitle}</p></div><button class="primary" id="create-incoming-key">${UI.icon('plus')}${t.settings.createIncomingKey}</button></div>
-      <div class="integration-provider-actions"><button class="ghost" id="connect-google" type="button">${t.settings.connectGoogle}</button></div>
-      <form id="integration-form" class="automation-form">
-        <input name="name" placeholder="${t.settings.integrationName}" required />
-        <select name="provider"><option value="make">Make</option><option value="power_automate">Power Automate</option><option value="webhook">Webhook</option></select>
-        <input name="webhook_url" type="url" placeholder="${t.settings.webhookUrl}" required />
-        <button class="primary" type="submit">${UI.icon('save')}${t.settings.addIntegration}</button>
-      </form>
-      <div class="automation-list">${state.integrations.filter((item) => item.auth_type !== 'incoming_webhook').map(integrationCard).join('') || `<p class="settings-hint">${t.settings.noIntegrations}</p>`}</div>
-    </div>
-    <div class="panel settings-section integrations-section">
-      <div class="section-head"><div><h2>${t.settings.automationsTitle}</h2><p class="settings-hint">${t.settings.automationsSubtitle}</p></div></div>
-      <form id="automation-form" class="automation-form">
-        <input name="name" placeholder="${t.settings.automationName}" required />
-        <select name="trigger_type"><option value="task.created">${t.settings.triggerTaskCreated}</option><option value="task.updated">${t.settings.triggerTaskUpdated}</option><option value="task.completed">${t.settings.triggerTaskCompleted}</option></select>
-        <select name="integration_id"><option value="">${t.settings.chooseIntegration}</option>${state.integrations.filter((item) => item.auth_type !== 'incoming_webhook').map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}</select>
-        <button class="primary" type="submit">${UI.icon('save')}${t.settings.addAutomation}</button>
-      </form>
-      <div class="automation-list">${state.automationRules.map(automationCard).join('') || `<p class="settings-hint">${t.settings.noAutomations}</p>`}</div>
-      <div class="automation-logs"><h3>${t.settings.automationLogs}</h3>${state.automationLogs.slice(0, 10).map(automationLogRow).join('') || `<p class="settings-hint">${t.settings.noLogs}</p>`}</div>
     </div>`;
   document.querySelectorAll('[data-theme]').forEach((button) => button.onclick = async () => {
     await Api.setSetting('theme', button.dataset.theme);
@@ -1504,12 +1487,60 @@ function renderSettings() {
   document.getElementById('add-status').onclick = () => openStatusModal();
   document.querySelectorAll('[data-edit-status]').forEach((button) => button.onclick = () => openStatusModal(state.statuses.find((item) => item.id == button.dataset.editStatus)));
   document.querySelectorAll('[data-delete-status]').forEach((button) => button.onclick = () => removeStatus(button.dataset.deleteStatus));
+}
+
+function renderIntegrations() {
+  setHeader(t.titles.integrations, t.subtitles.integrations);
+  document.getElementById('toolbar-actions').innerHTML = '';
+  const visibleIntegrations = state.integrations.filter((item) => item.auth_type !== 'incoming_webhook');
+  document.getElementById('content').innerHTML = `
+    <section class="integration-intro">
+      <div><span class="eyebrow">${t.integrations.eyebrow}</span><h2>${t.integrations.pageTitle}</h2><p>${t.integrations.pageSubtitle}</p></div>
+      <div class="integration-flow"><span>${t.integrations.flowTask}</span><b>&rarr;</b><span>${t.integrations.flowWebhook}</span><b>&rarr;</b><span>${t.integrations.flowAction}</span></div>
+    </section>
+    <section class="integration-help panel">
+      <div class="section-head"><div><h2>${t.integrations.helpTitle}</h2><p class="settings-hint">${t.integrations.helpSubtitle}</p></div></div>
+      <div class="integration-help-tabs"><button class="help-tab active" data-help-provider="make">${t.integrations.makeLabel}</button><button class="help-tab" data-help-provider="power_automate">${t.integrations.powerAutomateLabel}</button><button class="help-tab" data-help-provider="incoming">${t.integrations.incomingLabel}</button></div>
+      <div class="help-panel" data-help-panel="make"><h3>${t.integrations.makeTitle}</h3><p>${t.integrations.makeIntro}</p><ol>${t.integrations.makeSteps.map((step) => `<li>${step}</li>`).join('')}</ol><div class="help-tip">${t.integrations.makeTip}</div></div>
+      <div class="help-panel" data-help-panel="power_automate" hidden><h3>${t.integrations.powerAutomateTitle}</h3><p>${t.integrations.powerAutomateIntro}</p><ol>${t.integrations.powerAutomateSteps.map((step) => `<li>${step}</li>`).join('')}</ol><div class="help-tip">${t.integrations.powerAutomateTip}</div></div>
+      <div class="help-panel" data-help-panel="incoming" hidden><h3>${t.integrations.incomingTitle}</h3><p>${t.integrations.incomingIntro}</p><ol>${t.integrations.incomingSteps.map((step) => `<li>${step}</li>`).join('')}</ol></div>
+    </section>
+    <section class="panel settings-section integrations-section">
+      <div class="section-head"><div><h2>${t.integrations.connectionsTitle}</h2><p class="settings-hint">${t.integrations.connectionsSubtitle}</p></div><button class="primary" id="create-incoming-key">${UI.icon('plus')}${t.integrations.createIncomingKey}</button></div>
+      <div class="integration-provider-actions"><button class="ghost" id="connect-google" type="button">${t.integrations.connectGoogle}</button></div>
+      <form id="integration-form" class="automation-form">
+        <input name="name" placeholder="${t.integrations.integrationName}" required />
+        <select name="provider"><option value="make">${t.integrations.makeLabel}</option><option value="power_automate">${t.integrations.powerAutomateLabel}</option><option value="webhook">${t.integrations.webhookLabel}</option></select>
+        <input name="webhook_url" type="url" placeholder="${t.integrations.webhookUrl}" required />
+        <button class="primary" type="submit">${UI.icon('save')}${t.integrations.addIntegration}</button>
+      </form>
+      <div class="automation-list">${visibleIntegrations.map(integrationCard).join('') || `<p class="settings-hint">${t.integrations.noIntegrations}</p>`}</div>
+    </section>
+    <section class="panel settings-section integrations-section">
+      <div class="section-head"><div><h2>${t.integrations.automationsTitle}</h2><p class="settings-hint">${t.integrations.automationsSubtitle}</p></div></div>
+      <form id="automation-form" class="automation-form">
+        <input name="name" placeholder="${t.integrations.automationName}" required />
+        <select name="trigger_type"><option value="task.created">${t.integrations.triggerTaskCreated}</option><option value="task.updated">${t.integrations.triggerTaskUpdated}</option><option value="task.completed">${t.integrations.triggerTaskCompleted}</option></select>
+        <select name="integration_id"><option value="">${t.integrations.chooseIntegration}</option>${visibleIntegrations.map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}</select>
+        <button class="primary" type="submit">${UI.icon('save')}${t.integrations.addAutomation}</button>
+      </form>
+      <div class="automation-list">${state.automationRules.map(automationCard).join('') || `<p class="settings-hint">${t.integrations.noAutomations}</p>`}</div>
+      <div class="automation-logs"><h3>${t.integrations.automationLogs}</h3>${state.automationLogs.slice(0, 10).map(automationLogRow).join('') || `<p class="settings-hint">${t.integrations.noLogs}</p>`}</div>
+    </section>`;
+  bindIntegrationControls();
+}
+
+function bindIntegrationControls() {
+  document.querySelectorAll('[data-help-provider]').forEach((button) => button.onclick = () => {
+    document.querySelectorAll('[data-help-provider]').forEach((item) => item.classList.toggle('active', item === button));
+    document.querySelectorAll('[data-help-panel]').forEach((panel) => { panel.hidden = panel.dataset.helpPanel !== button.dataset.helpProvider; });
+  });
   document.getElementById('create-incoming-key').onclick = async () => {
     const result = await Api.createIncomingKey();
     const url = `${window.location.origin}/api/integrations/incoming/${result.token}`;
-    window.prompt(t.settings.incomingKeyPrompt, url);
+    window.prompt(t.integrations.incomingKeyPrompt, url);
     await loadAll();
-    renderSettings();
+    renderIntegrations();
   };
   document.getElementById('connect-google').onclick = async () => {
     try { const result = await Api.googleAuthorize(); window.location.href = result.url; } catch (error) { UI.toast(error.message); }
@@ -1519,44 +1550,44 @@ function renderSettings() {
     const data = Object.fromEntries(new FormData(event.target).entries());
     await Api.createIntegration({ provider: data.provider, name: data.name, config: { webhook_url: data.webhook_url } });
     await loadAll();
-    renderSettings();
+    renderIntegrations();
     UI.toast(t.messages.saved);
   };
   document.getElementById('automation-form').onsubmit = async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target).entries());
-    if (!data.integration_id) return UI.toast(t.settings.chooseIntegration);
+    if (!data.integration_id) return UI.toast(t.integrations.chooseIntegration);
     await Api.createAutomationRule({ name: data.name, trigger_type: data.trigger_type, integration_id: Number(data.integration_id) });
     await loadAll();
-    renderSettings();
+    renderIntegrations();
     UI.toast(t.messages.saved);
   };
-  document.querySelectorAll('[data-delete-integration]').forEach((button) => button.onclick = async () => { await Api.deleteIntegration(button.dataset.deleteIntegration); await loadAll(); renderSettings(); });
+  document.querySelectorAll('[data-delete-integration]').forEach((button) => button.onclick = async () => { await Api.deleteIntegration(button.dataset.deleteIntegration); await loadAll(); renderIntegrations(); });
   document.querySelectorAll('[data-config-google]').forEach((button) => button.onclick = async () => {
     try {
       const sheets = await Api.googleSpreadsheets();
-      if (!sheets.length) return UI.toast(t.settings.noGoogleSheets);
-      const selected = window.prompt(`${t.settings.chooseGoogleSheet}\n${sheets.map((sheet, index) => `${index + 1}. ${sheet.name}`).join('\n')}`, '1');
+      if (!sheets.length) return UI.toast(t.integrations.noGoogleSheets);
+      const selected = window.prompt(`${t.integrations.chooseGoogleSheet}\n${sheets.map((sheet, index) => `${index + 1}. ${sheet.name}`).join('\n')}`, '1');
       const index = Number(selected) - 1;
       if (!Number.isInteger(index) || !sheets[index]) return;
-      const sheetName = window.prompt(t.settings.sheetTabName, 'Sheet1') || 'Sheet1';
+      const sheetName = window.prompt(t.integrations.sheetTabName, 'Sheet1') || 'Sheet1';
       const item = state.integrations.find((integration) => integration.id == button.dataset.configGoogle);
       await Api.updateIntegration(item.id, { provider: 'google_sheets', name: item.name, auth_type: 'oauth2', config: { spreadsheet_id: sheets[index].id, sheet_name: sheetName } });
       await loadAll();
-      renderSettings();
+      renderIntegrations();
       UI.toast(t.messages.saved);
     } catch (error) { UI.toast(error.message); }
   });
-  document.querySelectorAll('[data-delete-automation]').forEach((button) => button.onclick = async () => { await Api.deleteAutomationRule(button.dataset.deleteAutomation); await loadAll(); renderSettings(); });
+  document.querySelectorAll('[data-delete-automation]').forEach((button) => button.onclick = async () => { await Api.deleteAutomationRule(button.dataset.deleteAutomation); await loadAll(); renderIntegrations(); });
 }
 
 function integrationCard(item) {
   const configure = item.provider === 'google_sheets' ? `<button class="ghost" data-config-google="${item.id}">${t.settings.chooseGoogleSheet}</button>` : '';
-  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.provider)} · ${item.is_active ? t.settings.active : t.settings.inactive}</span></div><div class="automation-row-actions">${configure}<button class="danger ghost" data-delete-integration="${item.id}">${UI.icon('trash')}</button></div></div>`;
+  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.provider)} &middot; ${item.is_active ? t.integrations.active : t.integrations.inactive}</span></div><div class="automation-row-actions">${configure}<button class="danger ghost" data-delete-integration="${item.id}">${UI.icon('trash')}</button></div></div>`;
 }
 
 function automationCard(item) {
-  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.trigger_type)} → ${escapeHtml(item.integration_name || t.settings.noIntegration)}</span></div><button class="danger ghost" data-delete-automation="${item.id}">${UI.icon('trash')}</button></div>`;
+  return `<div class="automation-row"><div><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.trigger_type)} &rarr; ${escapeHtml(item.integration_name || t.integrations.noIntegration)}</span></div><button class="danger ghost" data-delete-automation="${item.id}">${UI.icon('trash')}</button></div>`;
 }
 
 function automationLogRow(item) {
