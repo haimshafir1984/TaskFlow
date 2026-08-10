@@ -6,6 +6,7 @@ const createAuthController = require('../controllers/authController');
 const createCustomerController = require('../controllers/customerController');
 const createPreferencesController = require('../controllers/preferencesController');
 const { requireAuth } = require('../middleware/auth');
+const createAutomationController = require('../controllers/automationController');
 
 function createRoutes(services) {
   const router = express.Router();
@@ -15,12 +16,19 @@ function createRoutes(services) {
   const settings = createSettingsController(services.settingsService, services.taskService);
   const customers = createCustomerController(services.customerService);
   const preferences = createPreferencesController(services.preferencesService);
+  const automation = createAutomationController(services.automationService);
 
   router.post('/auth/register', auth.register);
   router.post('/auth/login', auth.login);
   router.get('/auth/status', auth.status);
   router.post('/auth/logout', auth.logout);
   router.post('/auth/change-password', requireAuth(services.authService), auth.changePassword);
+
+  router.post('/integrations/incoming/:token', (req, res) => {
+    const received = services.automationService.receiveIncoming(req.params.token, req.body);
+    const task = services.taskService.create(received.userId, received.task);
+    res.status(201).json(task);
+  });
 
   router.use(requireAuth(services.authService));
 
@@ -64,6 +72,17 @@ function createRoutes(services) {
 
   router.get('/preferences', preferences.get);
   router.put('/preferences', preferences.set);
+
+  router.get('/integrations', automation.integrations.list);
+  router.post('/integrations', automation.integrations.create);
+  router.put('/integrations/:id', automation.integrations.update);
+  router.delete('/integrations/:id', automation.integrations.delete);
+  router.post('/integrations/incoming-key', automation.integrations.incomingKey);
+  router.get('/automation-rules', automation.rules.list);
+  router.post('/automation-rules', automation.rules.create);
+  router.put('/automation-rules/:id', automation.rules.update);
+  router.delete('/automation-rules/:id', automation.rules.delete);
+  router.get('/automation-logs', automation.logs);
 
   router.get('/settings', settings.list);
   router.post('/settings', settings.set);

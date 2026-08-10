@@ -16,6 +16,9 @@ const CatalogService = require('./services/catalogService');
 const SettingsService = require('./services/settingsService');
 const AuthService = require('./services/authService');
 const PreferencesService = require('./services/preferencesService');
+const IntegrationRepository = require('./repositories/integrationRepository');
+const AutomationRepository = require('./repositories/automationRepository');
+const AutomationService = require('./services/automationService');
 
 async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const { db, dbPath } = await initDatabase(dataDir);
@@ -52,15 +55,19 @@ async function startServer({ dataDir, port = 0, host = '127.0.0.1' }) {
   const priorityRepository = new PriorityRepository(db);
   const statusRepository = new StatusRepository(db);
   const preferencesRepository = new PreferencesRepository(db);
+  const integrationRepository = new IntegrationRepository(db);
+  const automationRepository = new AutomationRepository(db);
+  const automationService = new AutomationService(integrationRepository, automationRepository, taskRepository);
   const settingsService = new SettingsService(db, dbPath);
   const catalogService = new CatalogService(projectRepository, contactRepository, categoryRepository, priorityRepository, statusRepository);
   const services = {
     authService: new AuthService(db, catalogService),
-    taskService: new TaskService(taskRepository, statusRepository),
+    taskService: new TaskService(taskRepository, statusRepository, automationService),
     customerService: new CustomerService(customerRepository),
     catalogService,
     settingsService,
-    preferencesService: new PreferencesService(preferencesRepository)
+    preferencesService: new PreferencesService(preferencesRepository),
+    automationService,
   };
 
   app.get('/health', (req, res) => res.json({ ok: true }));

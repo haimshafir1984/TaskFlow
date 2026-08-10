@@ -139,9 +139,61 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS integrations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  provider TEXT NOT NULL,
+  name TEXT NOT NULL,
+  auth_type TEXT NOT NULL DEFAULT 'webhook',
+  config TEXT NOT NULL DEFAULT '{}',
+  credentials TEXT NOT NULL DEFAULT '{}',
+  is_active INTEGER NOT NULL DEFAULT 1,
+  last_success_at TEXT,
+  last_error TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS automation_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  integration_id INTEGER,
+  name TEXT NOT NULL,
+  trigger_type TEXT NOT NULL,
+  conditions TEXT NOT NULL DEFAULT '{}',
+  action_type TEXT NOT NULL DEFAULT 'send_event',
+  action_config TEXT NOT NULL DEFAULT '{}',
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS automation_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  rule_id INTEGER,
+  integration_id INTEGER,
+  event_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  request_payload TEXT NOT NULL DEFAULT '{}',
+  response_status INTEGER,
+  error_message TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (rule_id) REFERENCES automation_rules(id) ON DELETE SET NULL,
+  FOREIGN KEY (integration_id) REFERENCES integrations(id) ON DELETE SET NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 CREATE INDEX IF NOT EXISTS idx_task_tags_task_id ON task_tags(task_id);
 CREATE INDEX IF NOT EXISTS idx_customers_user_id ON customers(user_id);
 CREATE INDEX IF NOT EXISTS idx_customers_stage ON customers(stage);
+CREATE INDEX IF NOT EXISTS idx_integrations_user_id ON integrations(user_id);
+CREATE INDEX IF NOT EXISTS idx_automation_rules_user_id ON automation_rules(user_id);
+CREATE INDEX IF NOT EXISTS idx_automation_logs_user_id ON automation_logs(user_id);

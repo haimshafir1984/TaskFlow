@@ -1,9 +1,10 @@
 const { validateTask } = require('../validators/taskValidator');
 
 class TaskService {
-  constructor(taskRepository, statusRepository) {
+  constructor(taskRepository, statusRepository, automationService = null) {
     this.tasks = taskRepository;
     this.statuses = statusRepository;
+    this.automations = automationService;
   }
 
   list(userId, filters) {
@@ -11,11 +12,15 @@ class TaskService {
   }
 
   create(userId, payload) {
-    return this.tasks.create({ ...this.normalize(userId, payload), user_id: Number(userId) });
+    const task = this.tasks.create({ ...this.normalize(userId, payload), user_id: Number(userId) });
+    this.automations?.emit(userId, 'task.created', task);
+    return task;
   }
 
   update(userId, id, payload) {
-    return this.tasks.update(userId, id, this.normalize(userId, payload));
+    const task = this.tasks.update(userId, id, this.normalize(userId, payload));
+    this.automations?.emit(userId, 'task.updated', task);
+    return task;
   }
 
   delete(userId, id) {
@@ -23,7 +28,9 @@ class TaskService {
   }
 
   complete(userId, id) {
-    return this.tasks.markComplete(userId, id);
+    const task = this.tasks.markComplete(userId, id);
+    this.automations?.emit(userId, 'task.completed', task);
+    return task;
   }
 
   duplicate(userId, id) {
