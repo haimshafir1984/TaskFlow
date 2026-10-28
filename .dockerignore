@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+build/
+.git/
+.github/
+.claude/
+*.sqlite
+*.sqlite-journal
+*.db
+*.log
+Dockerfile
+.dockerignore
